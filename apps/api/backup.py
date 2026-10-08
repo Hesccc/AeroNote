@@ -1,5 +1,6 @@
 import io
 import os
+import re
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -366,10 +367,157 @@ def export_full_site_backup():
     })
 
 
+def _split_sql_statements(sql_text: str):
+    """
+    智能解析并拆分 SQL 语句：
+    精准识别单引号字符串、双引号标识符、转义字符以及单行/多行注释，
+    绝不会在字符串或文章正文内容内部的分号处错误切断。
+    """
+    statements = []
+    current = []
+    in_single_quote = False
+    in_double_quote = False
+    in_line_comment = False
+    in_block_comment = False
+    escape = False
+
+    i = 0
+    n = len(sql_text)
+    while i < n:
+        char = sql_text[i]
+        next_char = sql_text[i + 1] if i + 1 < n else ''
+
+        if in_single_quote:
+            current.append(char)
+            if escape:
+                escape = False
+            elif char == '\\':
+                escape = True
+            elif char == "'":
+                if next_char == "'":
+                    current.append(next_char)
+                    i += 1
+                else:
+                    in_single_quote = False
+        elif in_double_quote:
+            current.append(char)
+            if escape:
+                escape = False
+            elif char == '\\':
+                escape = True
+            elif char == '"':
+                in_double_quote = False
+        elif in_line_comment:
+            if char == '\n':
+                in_line_comment = False
+        elif in_block_comment:
+            if char == '*' and next_char == '/':
+                in_block_comment = False
+                i += 1
+        else:
+            if char == '-' and next_char == '-':
+                in_line_comment = True
+                i += 1
+            elif char == '/' and next_char == '*':
+                in_block_comment = True
+                i += 1
+            elif char == "'":
+                in_single_quote = True
+                current.append(char)
+            elif char == '"':
+                in_double_quote = True
+                current.append(char)
+            elif char == ';':
+                stmt = "".join(current).strip()
+                if stmt:
+                    statements.append(stmt)
+                current = []
+            else:
+                current.append(char)
+        i += 1
+
+    last_stmt = "".join(current).strip()
+    if last_stmt:
+        statements.append(last_stmt)
+
+    return statements
+
+
+def _adapt_sql_for_target_dialect(stmt: str, is_pg: bool) -> str:
+    """
+    跨数据库方言 DDL / DML 自动平滑适配转换器：
+    让 MySQL 导出的 SQL 脚本能够直接无缝恢复到 PostgreSQL，
+    也让 PostgreSQL 导出的 SQL 能够直接恢复到 MySQL / MariaDB。
+    """
+    cleaned = stmt.strip()
+    lower = cleaned.lower()
+
+    if is_pg:
+        # 1. 过滤忽略 MySQL 专有的会话指令
+        if lower.startswith((
+            'set names', 'set foreign_key_checks', 'set sql_mode',
+            'set autocommit', 'set unique_checks', 'lock tables', 'unlock tables'
+        )):
+            return ""
+
+        # 2. DROP TABLE 增加 CASCADE 避免外键关联拦截
+        if lower.startswith('drop table'):
+            cleaned = re.sub(r';?$', '', cleaned, flags=re.IGNORECASE).strip()
+            if not re.search(r'\bcascade\b', cleaned, flags=re.IGNORECASE):
+                cleaned += ' CASCADE'
+
+        # 3. CREATE TABLE MySQL -> PostgreSQL 语法自适应
+        if lower.startswith('create table'):
+            cleaned = re.sub(r';?$', '', cleaned, flags=re.IGNORECASE).strip()
+            # 移除表尾引擎、字符集和自增初值
+            cleaned = re.sub(
+                r'\)\s*(?:ENGINE\s*=\s*\w+|AUTO_INCREMENT\s*=\s*\d+|DEFAULT\s+CHARSET\s*=\s*[\w_]+|CHARSET\s*=\s*[\w_]+|COLLATE\s*=\s*[\w_]+|\bROW_FORMAT\s*=\s*\w+)+\s*$',
+                ')', cleaned, flags=re.IGNORECASE
+            )
+            # 自增主键字段映射
+            cleaned = re.sub(r'\b(?:INTEGER|INT|BIGINT)\s+NOT\s+NULL\s+AUTO_INCREMENT\b', 'SERIAL NOT NULL', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'\b(?:INTEGER|INT|BIGINT)\s+AUTO_INCREMENT\b', 'SERIAL', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'\bAUTO_INCREMENT\b', '', cleaned, flags=re.IGNORECASE)
+            # 字段类型映射
+            cleaned = re.sub(r'\bDATETIME\b', 'TIMESTAMP', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'\b(?:LONGTEXT|MEDIUMTEXT|TINYTEXT)\b', 'TEXT', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'\bTINYINT\s*\(\s*1\s*\)', 'BOOLEAN', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'\bTINYINT\s*\(\s*\d+\s*\)', 'SMALLINT', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'\b(?:INT|INTEGER)\s*\(\s*\d+\s*\)', 'INTEGER', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'\bBIGINT\s*\(\s*\d+\s*\)', 'BIGINT', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'\bCOLLATE\s+[\w_]+\b', '', cleaned, flags=re.IGNORECASE)
+
+            # 过滤 MySQL 专有的内联 KEY / INDEX 定义
+            lines = cleaned.split('\n')
+            filtered_lines = []
+            for line in lines:
+                l_str = line.strip()
+                if re.match(r'^(?:KEY|INDEX)\s+[`"\w]+\s*\(.*?\),?$', l_str, flags=re.IGNORECASE):
+                    continue
+                filtered_lines.append(line)
+            cleaned = '\n'.join(filtered_lines)
+            cleaned = re.sub(r',\s*(\n\s*\))', r'\1', cleaned)
+
+        # 4. 反引号替换为 PostgreSQL 双引号
+        cleaned = cleaned.replace('`', '"')
+    else:
+        # 目标是 MySQL，但输入可能是 PostgreSQL DDL
+        if lower.startswith('create table'):
+            cleaned = re.sub(r'\bBIGSERIAL\b', 'BIGINT NOT NULL AUTO_INCREMENT', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'\bSERIAL\b', 'INTEGER NOT NULL AUTO_INCREMENT', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'\bTIMESTAMP\b', 'DATETIME', cleaned, flags=re.IGNORECASE)
+        if lower.startswith('drop table'):
+            cleaned = re.sub(r'\bCASCADE\b', '', cleaned, flags=re.IGNORECASE).strip()
+        if lower.startswith('select setval'):
+            return ""
+
+    return cleaned
+
+
 @api_backup.route('/api/manage/backups/restore/sql', methods=['POST'])
 @token_required
 def restore_database_from_sql():
-    """从备份文件或上传的 SQL 文件恢复底层数据库。"""
+    """从备份文件或上传的 SQL 文件恢复底层数据库（支持跨方言 MySQL / PostgreSQL 自动转换与安全隔离执行）。"""
     sql_text = None
 
     # 支持直接上传 SQL 文件
@@ -389,8 +537,8 @@ def restore_database_from_sql():
     if not sql_text:
         return jsonify({'msg': '请选择要恢复的 SQL 备份文件'}), 400
 
-    # 分割并批量执行 SQL 语句，严格实施 DDL/DML 安全指令白名单与高危黑名单拦截
-    raw_statements = [stmt.strip() for stmt in sql_text.split(';') if stmt.strip()]
+    # 智能解析拆分 SQL 语句（防止将文章内容或字符串中的分号破坏截断）
+    raw_statements = _split_sql_statements(sql_text)
     executed_count = 0
     errors = []
 
@@ -407,40 +555,67 @@ def restore_database_from_sql():
         'shutdown', 'super', 'process', 'information_schema', 'mysql.'
     )
 
-    # 禁用外键约束执行还原
-    dialect = db.engine.dialect.name
-    is_pg = 'postgres' in dialect
+    dialect = db.engine.dialect.name.lower()
+    is_pg = ('postgres' in dialect)
 
     try:
         if not is_pg:
             db.session.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
-        for stmt in raw_statements:
-            # 过滤注释
-            lines = [l for l in stmt.split('\n') if not l.strip().startswith('--') and not l.strip().startswith('/*')]
-            cleaned_stmt = "\n".join(lines).strip()
-            if not cleaned_stmt:
+
+        for raw_stmt in raw_statements:
+            # 跨方言语法自适应转换
+            stmt_to_run = _adapt_sql_for_target_dialect(raw_stmt, is_pg=is_pg)
+            if not stmt_to_run:
                 continue
 
-            lower_stmt = cleaned_stmt.lower()
+            lower_stmt = stmt_to_run.lower()
 
             # 1. 拦截高危指令
             if any(forbidden in lower_stmt for forbidden in FORBIDDEN_KEYWORDS):
-                errors.append(f"安全拦截: 语句包含受限系统级高危关键字")
+                errors.append("安全拦截: 语句包含受限系统级高危关键字")
                 continue
 
             # 2. 白名单前缀验证
             if not any(lower_stmt.startswith(verb) for verb in ALLOWED_VERBS):
-                errors.append(f"安全拦截: 不在允许执行的数据库恢复语句白名单内")
+                errors.append(f"安全拦截: 不在允许执行的数据库恢复语句白名单内 ({stmt_to_run[:30]})")
                 continue
 
-            try:
-                db.session.execute(text(cleaned_stmt))
-                executed_count += 1
-            except Exception as e:
-                errors.append(str(e)[:120])
+            # 3. 执行语句（在 PostgreSQL 下使用 Savepoint 子事务隔离，避免单个非关键指令错误导致事务整体 Abort）
+            if is_pg:
+                try:
+                    with db.session.begin_nested():
+                        db.session.execute(text(stmt_to_run))
+                    executed_count += 1
+                except Exception as e:
+                    errors.append(str(e)[:120])
+            else:
+                try:
+                    db.session.execute(text(stmt_to_run))
+                    executed_count += 1
+                except Exception as e:
+                    errors.append(str(e)[:120])
 
-        if not is_pg:
+        if is_pg:
+            # 自动校准与对齐所有表的主键自增序列，防止后续插入新数据时发生主键冲突
+            try:
+                inspector = db.inspect(db.engine)
+                for tbl in inspector.get_table_names():
+                    try:
+                        with db.session.begin_nested():
+                            seq_sql = f"""
+                            SELECT setval(
+                                pg_get_serial_sequence('"{tbl}"', 'id'),
+                                COALESCE((SELECT MAX(id) FROM "{tbl}"), 1)
+                            );
+                            """
+                            db.session.execute(text(seq_sql))
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+        else:
             db.session.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
+
         db.session.commit()
     except Exception as e:
         db.session.rollback()
