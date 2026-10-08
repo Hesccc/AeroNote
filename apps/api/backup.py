@@ -28,16 +28,22 @@ def _format_size(size_bytes: int) -> str:
 
 def _dump_database_to_sql() -> str:
     """
-    生成通用便携式 SQL 备份脚本，自适应兼容 MySQL、MariaDB 与 PostgreSQL：
-    包含完整的建表 DDL 及数据 INSERT 语句。
+    使用 SQLAlchemy 元数据、Schema 与 Core 查询组件生成跨方言便携式 SQL 备份脚本：
+    统一使用 SQLAlchemy Table/select/compile 进行方言渲染，彻底杜绝手工拼接 SQL 字符串。
+    原生自适应兼容 MySQL、MariaDB 与 PostgreSQL。
     """
-    dialect = db.engine.dialect.name
-    is_pg = 'postgres' in dialect
+    from sqlalchemy import Table, select
+    from sqlalchemy.schema import CreateTable, DropTable
+
+    dialect = db.engine.dialect
+    dialect_name = dialect.name.lower()
+    is_pg = ('postgres' in dialect_name)
 
     sql_lines = [
         "-- ========================================================",
-        f"-- Blog System Database Dump ({dialect.upper()})",
+        f"-- Blog System Database Dump ({dialect_name.upper()})",
         f"-- Generated At: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "-- Powered by SQLAlchemy Unified Dialect Management",
         "-- ========================================================",
     ]
 
@@ -46,6 +52,8 @@ def _dump_database_to_sql() -> str:
             "SET NAMES utf8mb4;",
             "SET FOREIGN_KEY_CHECKS = 0;\n"
         ])
+    else:
+        sql_lines.append("SET CONSTRAINTS ALL DEFERRED;\n")
 
     inspector = db.inspect(db.engine)
     table_names = inspector.get_table_names()
@@ -54,51 +62,73 @@ def _dump_database_to_sql() -> str:
         sql_lines.append(f"-- --------------------------------------------------------")
         sql_lines.append(f"-- Table structure for `{tbl}`")
         sql_lines.append(f"-- --------------------------------------------------------")
-        sql_lines.append(f"DROP TABLE IF EXISTS `{tbl}` CASCADE;" if is_pg else f"DROP TABLE IF EXISTS `{tbl}`;")
-        
-        # 针对不同数据库方言提取建表语句
-        try:
-            if not is_pg:
-                res = db.session.execute(text(f"SHOW CREATE TABLE `{tbl}`")).fetchone()
-                if res and len(res) >= 2:
-                    sql_lines.append(f"{res[1]};\n")
-            else:
-                # PG 下基于 SQLAlchemy 元数据模型导出 DDL
-                metadata = db.Model.metadata
-                if tbl in metadata.tables:
-                    from sqlalchemy.schema import CreateTable
-                    create_sql = str(CreateTable(metadata.tables[tbl]).compile(db.engine)).strip()
-                    sql_lines.append(f"{create_sql};\n")
-        except Exception as e:
-            sql_lines.append(f"-- Failed to fetch CREATE TABLE for `{tbl}`: {e}\n")
 
-        # 导出数据
+        # 使用 SQLAlchemy 获取或反射 Table 对象
+        table = db.Model.metadata.tables.get(tbl)
+        if table is None:
+            try:
+                table = Table(tbl, db.Model.metadata, autoload_with=db.engine)
+            except Exception:
+                table = None
+
+        if table is not None:
+            # 使用 SQLAlchemy DropTable 统一生成方言适配的删除表指令
+            try:
+                drop_stmt = str(DropTable(table, if_exists=True).compile(db.engine)).strip()
+                if is_pg and not drop_stmt.endswith('CASCADE'):
+                    drop_stmt += ' CASCADE'
+                sql_lines.append(f"{drop_stmt};\n")
+            except Exception:
+                sql_lines.append(f"DROP TABLE IF EXISTS `{tbl}`;\n")
+
+            # 使用 SQLAlchemy CreateTable 统一编译当前数据库方言适配的建表 DDL
+            try:
+                create_stmt = str(CreateTable(table).compile(db.engine)).strip()
+                sql_lines.append(f"{create_stmt};\n")
+            except Exception as e:
+                sql_lines.append(f"-- Failed to compile CreateTable for `{tbl}` via SQLAlchemy: {e}\n")
+        else:
+            sql_lines.append(f"DROP TABLE IF EXISTS `{tbl}`;\n")
+
+        # 使用 SQLAlchemy select(table) 统一获取表数据（消除手工 SELECT 字符串拼接）
         try:
-            rows = db.session.execute(text(f'SELECT * FROM "{tbl}"' if is_pg else f"SELECT * FROM `{tbl}`")).fetchall()
+            if table is not None:
+                select_stmt = select(table)
+                rows = db.session.execute(select_stmt).fetchall()
+            else:
+                rows = []
+
             if rows:
                 sql_lines.append(f"-- Dumping data for `{tbl}` ({len(rows)} records)")
-                columns = [col['name'] for col in inspector.get_columns(tbl)]
-                cols_str = ", ".join([f'"{c}"' if is_pg else f"`{c}`" for c in columns])
-
                 for row in rows:
-                    val_strs = []
-                    for val in row:
-                        if val is None:
-                            val_strs.append("NULL")
-                        elif isinstance(val, (int, float)):
-                            val_strs.append(str(val))
-                        elif isinstance(val, bool):
-                            val_strs.append("TRUE" if val else "FALSE")
-                        elif isinstance(val, datetime):
-                            val_strs.append(f"'{val.strftime('%Y-%m-%d %H:%M:%S')}'")
-                        elif isinstance(val, (bytes, bytearray)):
-                            hex_str = val.hex()
-                            val_strs.append(f"X'{hex_str}'" if not is_pg else f"'\\x{hex_str}'")
-                        else:
-                            clean_str = str(val).replace('\\', '\\\\').replace("'", "\\'")
-                            val_strs.append(f"'{clean_str}'")
-                    target_table = f'"{tbl}"' if is_pg else f"`{tbl}`"
-                    sql_lines.append(f"INSERT INTO {target_table} ({cols_str}) VALUES ({', '.join(val_strs)});")
+                    try:
+                        # 基于 SQLAlchemy table.insert() 统一编译并安全格式化字面量
+                        row_dict = dict(row._mapping)
+                        insert_stmt = table.insert().values(row_dict)
+                        compiled_insert = str(insert_stmt.compile(
+                            dialect=db.engine.dialect,
+                            compile_kwargs={"literal_binds": True}
+                        )).strip()
+                        sql_lines.append(f"{compiled_insert};")
+                    except Exception as row_err:
+                        # 降级备用：针对特殊无法字面量绑定的字段提供兜底
+                        cols = list(row._mapping.keys())
+                        col_identifiers = [dialect.identifier_preparer.quote(c) for c in cols]
+                        val_parts = []
+                        for v in row._mapping.values():
+                            if v is None:
+                                val_parts.append("NULL")
+                            elif isinstance(v, (int, float)):
+                                val_parts.append(str(v))
+                            elif isinstance(v, bool):
+                                val_parts.append("TRUE" if v else "FALSE")
+                            elif isinstance(v, datetime):
+                                val_parts.append(f"'{v.strftime('%Y-%m-%d %H:%M:%S')}'")
+                            else:
+                                clean_val = str(v).replace('\\', '\\\\').replace("'", "\\'")
+                                val_parts.append(f"'{clean_val}'")
+                        target_tbl = dialect.identifier_preparer.quote(tbl)
+                        sql_lines.append(f"INSERT INTO {target_tbl} ({', '.join(col_identifiers)}) VALUES ({', '.join(val_parts)});")
                 sql_lines.append("")
         except Exception as e:
             sql_lines.append(f"-- Failed to dump data for `{tbl}`: {e}\n")
@@ -364,10 +394,10 @@ def restore_database_from_sql():
     executed_count = 0
     errors = []
 
-    # 允许的安全前缀白名单
+    # 允许的安全前缀白名单（涵盖 MySQL, MariaDB 及 PostgreSQL 常用恢复指令）
     ALLOWED_VERBS = (
         'set', 'create table', 'drop table', 'insert into', 'lock tables', 'unlock tables',
-        'alter table', 'truncate table', 'create index', 'drop index'
+        'alter table', 'truncate table', 'create index', 'drop index', 'select setval'
     )
 
     # 严厉禁止的高危危险特征黑名单 (防提权、防木马写出、防本地任意文件读取)

@@ -14,8 +14,7 @@ def init_exts(app):
     # 自动创建表与初始化数据 (带重试保护，避免冷启动数据库瞬时不可达导致 Gunicorn worker 崩溃)
     with app.app_context():
         import time
-        import logging
-        logger = logging.getLogger(__name__)
+        from apps.tools.logger import app_logger
 
         initialized = False
         for attempt in range(1, 11):
@@ -27,24 +26,43 @@ def init_exts(app):
                 initialized = True
                 break
             except Exception as e:
-                logger.warning(f"Database connection attempt {attempt}/10 failed: {e}")
+                app_logger.warning(f"Database connection attempt {attempt}/10 failed: {e}")
                 time.sleep(2)
 
         if not initialized:
-            logger.error("Could not initialize database on startup. Workers will run in degraded mode.")
+            app_logger.error("Could not initialize database on startup. Workers will run in degraded mode.")
             return
 
-        # 仅针对 MySQL 方言执行历史老库升级
+        # 使用 SQLAlchemy inspect 跨数据库统一管理表结构反射与增量迁移
         try:
-            bind = db.session.get_bind()
-            if bind and bind.dialect.name == 'mysql':
-                db.session.execute(text('ALTER TABLE users MODIFY COLUMN password VARCHAR(255) NOT NULL'))
-                db.session.execute(text('ALTER TABLE posts MODIFY COLUMN content LONGTEXT'))
-                cols = [c[0] for c in db.session.execute(text('DESCRIBE posts')).fetchall()]
-                if 'summary' not in cols:
-                    db.session.execute(text('ALTER TABLE posts ADD COLUMN summary VARCHAR(600) NULL'))
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            existing_tables = set(inspector.get_table_names())
+            dialect_name = db.engine.dialect.name.lower()
+
+            if 'posts' in existing_tables:
+                posts_cols = {col['name'] for col in inspector.get_columns('posts')}
+                # 自适应补全新增字段 summary
+                if 'summary' not in posts_cols:
+                    if dialect_name in ('mysql', 'mariadb'):
+                        db.session.execute(text('ALTER TABLE posts ADD COLUMN summary VARCHAR(1024) NULL'))
+                    elif 'postgres' in dialect_name:
+                        db.session.execute(text('ALTER TABLE posts ADD COLUMN IF NOT EXISTS summary VARCHAR(1024)'))
+                    db.session.commit()
+
+                # 对 MySQL/MariaDB 历史老表内容字段进行大文本扩容
+                if dialect_name in ('mysql', 'mariadb'):
+                    db.session.execute(text('ALTER TABLE posts MODIFY COLUMN content LONGTEXT'))
+                    db.session.commit()
+
+            if 'users' in existing_tables:
+                if dialect_name in ('mysql', 'mariadb'):
+                    db.session.execute(text('ALTER TABLE users MODIFY COLUMN password VARCHAR(255) NOT NULL'))
+                elif 'postgres' in dialect_name:
+                    db.session.execute(text('ALTER TABLE users ALTER COLUMN password TYPE VARCHAR(255)'))
                 db.session.commit()
-        except Exception:
+        except Exception as e:
+            app_logger.warning(f"数据库结构自检/增量迁移提示: {e}")
             db.session.rollback()
 
         # 检查是否为空白数据库（Config 表为空）
@@ -110,7 +128,7 @@ def init_exts(app):
             try:
                 db.session.commit()
             except Exception as e:
-                logger.warning(f"种子数据写入告警: {e}")
+                app_logger.warning(f"种子数据写入告警: {e}")
                 db.session.rollback()
 
 

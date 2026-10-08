@@ -92,17 +92,23 @@ def _get_static_env():
     db_name = "MySQL"
     try:
         from apps.exts import db
-        dialect = db.engine.dialect.name
-        if 'postgres' in dialect:
+        from apps import config
+        dialect = db.engine.dialect
+        dialect_name = dialect.name.lower()
+
+        if 'postgres' in dialect_name:
             db_name = "PostgreSQL"
-        elif 'maria' in dialect:
-            db_name = "MariaDB"
-        elif 'sqlite' in dialect:
+        elif 'sqlite' in dialect_name:
             db_name = "SQLite"
+        elif getattr(dialect, 'is_mariadb', False) or config.DB_TYPE == 'MariaDB':
+            db_name = "MariaDB"
+        elif config.DB_TYPE in ('MySQL', 'MariaDB', 'PostgreSQL'):
+            db_name = config.DB_TYPE
         else:
-            db_name = "MySQL / MariaDB"
+            db_name = "MySQL"
     except Exception:
-        db_name = "MySQL / MariaDB"
+        from apps import config
+        db_name = getattr(config, 'DB_TYPE', 'MySQL')
 
     _STATIC_ENV_CACHE = {
         'os': os_name,
@@ -145,11 +151,6 @@ def env():
     return env_data
 
 
-def setup_custom_logger(name, log_file):
-    formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
-    handler = logging.FileHandler(log_file)
-    handler.setFormatter(formatter)
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(handler)
-    return logger
+def setup_custom_logger(name, log_file=None):
+    from apps.tools.logger import get_module_logger
+    return get_module_logger(name)

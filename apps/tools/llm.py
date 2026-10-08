@@ -1,7 +1,9 @@
 import json
+import time
 from openai import OpenAI
 from apps import config
 from apps.models.model import Config
+from apps.tools.logger import llm_logger
 
 
 def get_llm_client_and_model():
@@ -16,6 +18,7 @@ def get_llm_client_and_model():
     model = db_configs.get('llm_model') or config.OPENAI_MODEL or 'gpt-4o-mini'
 
     if not api_key:
+        llm_logger.warning("大模型调用被拦截: 尚未配置大模型 API Key")
         raise ValueError("尚未配置大模型 API Key！请在后台「系统设置」->「AI 大模型」配置 API Key 或在 .env 中设置 OPENAI_API_KEY。")
 
     client = OpenAI(
@@ -43,5 +46,14 @@ def llm_chat_completion(system_prompt: str, user_prompt: str, temperature: float
     if json_mode:
         kwargs["response_format"] = {"type": "json_object"}
 
-    response = client.chat.completions.create(**kwargs)
-    return response.choices[0].message.content or ""
+    start_time = time.time()
+    llm_logger.info(f"发起大模型请求 [Model: {model}, json_mode: {json_mode}]")
+    try:
+        response = client.chat.completions.create(**kwargs)
+        duration_s = time.time() - start_time
+        llm_logger.info(f"大模型响应完成 [Model: {model}] 耗时: {duration_s:.2f}s")
+        return response.choices[0].message.content or ""
+    except Exception as e:
+        duration_s = time.time() - start_time
+        llm_logger.error(f"大模型调用失败 [Model: {model}] 耗时: {duration_s:.2f}s, 错误: {e}")
+        raise e

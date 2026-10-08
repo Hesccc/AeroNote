@@ -1,5 +1,6 @@
 import os
 import logging
+import urllib.parse
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -15,36 +16,79 @@ if SECRET_KEY == 'default-dev-secret-key-please-change-in-env':
 # CORS 允许的来源（逗号分隔），生产环境建议配置为具体前端域名
 CORS_ORIGINS = [o.strip() for o in os.getenv('CORS_ORIGINS', '*').split(',') if o.strip()]
 
-# 数据库配置 (支持 MySQL, MariaDB, PostgreSQL 等)
-DB_TYPE = os.getenv('DB_TYPE', '').lower().strip()
+# ─────────────────────────────────────────────────────────────
+# 数据库配置与多方言自动适配 (PostgreSQL / MySQL / MariaDB)
+# ─────────────────────────────────────────────────────────────
+# 从 .env 读取数据库类型（大小写不敏感，如 MySQL, MariaDB, PostgreSQL）
+RAW_DB_TYPE = os.getenv('DB_TYPE', '').lower().strip()
 DB_PORT_RAW = os.getenv('DB_PORT', '').strip()
 
-# 智能识别数据库类型与默认端口
-if DB_TYPE in ('postgres', 'postgresql', 'pgsql') or DB_PORT_RAW == '5432':
-    IS_POSTGRES = True
-    PORT = DB_PORT_RAW or '5432'
+if RAW_DB_TYPE in ('postgres', 'postgresql', 'pgsql', 'pg') or (not RAW_DB_TYPE and DB_PORT_RAW == '5432'):
+    DB_TYPE = 'PostgreSQL'
+    DB_DIALECT = 'postgresql'
+    DEFAULT_PORT = '5432'
     DEFAULT_USER = 'postgres'
-else:
-    IS_POSTGRES = False
-    PORT = DB_PORT_RAW or '3306'
+elif RAW_DB_TYPE in ('mariadb', 'maria'):
+    DB_TYPE = 'MariaDB'
+    DB_DIALECT = 'mariadb'
+    DEFAULT_PORT = '3306'
     DEFAULT_USER = 'root'
+else:
+    # 默认 MySQL
+    DB_TYPE = 'MySQL'
+    DB_DIALECT = 'mysql'
+    DEFAULT_PORT = '3306'
+    DEFAULT_USER = 'root'
+
+IS_POSTGRES = (DB_DIALECT == 'postgresql')
+PORT = DB_PORT_RAW or DEFAULT_PORT
 
 HOSTNAME = os.getenv('DB_HOST', '127.0.0.1')
 DATABASE = os.getenv('DB_NAME', 'aeronote')
 USERNAME = os.getenv('DB_USER', DEFAULT_USER)
 PASSWORD = os.getenv('DB_PASSWORD', '')
 
+# 对用户名和密码进行 URL 安全编码，防止特殊字符（如 @, :, /, ?）导致连接串解析失败
+encoded_user = urllib.parse.quote_plus(USERNAME) if USERNAME else ''
+encoded_password = urllib.parse.quote_plus(PASSWORD) if PASSWORD else ''
+
+if encoded_password:
+    auth_part = f"{encoded_user}:{encoded_password}"
+elif encoded_user:
+    auth_part = encoded_user
+else:
+    auth_part = ""
+
 DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL:
     DB_URI = DATABASE_URL
+    # 若显式传入 DATABASE_URL，自适应校准方言标识
+    if 'postgresql' in DATABASE_URL.lower():
+        DB_TYPE = 'PostgreSQL'
+        DB_DIALECT = 'postgresql'
+        IS_POSTGRES = True
+    elif 'mariadb' in DATABASE_URL.lower():
+        DB_TYPE = 'MariaDB'
+        DB_DIALECT = 'mariadb'
+        IS_POSTGRES = False
+    else:
+        DB_TYPE = 'MySQL'
+        DB_DIALECT = 'mysql'
+        IS_POSTGRES = False
 elif IS_POSTGRES:
-    DB_URI = f'postgresql+psycopg2://{USERNAME}:{PASSWORD}@{HOSTNAME}:{PORT}/{DATABASE}'
+    auth_prefix = f"{auth_part}@" if auth_part else ""
+    DB_URI = f'postgresql+psycopg2://{auth_prefix}{HOSTNAME}:{PORT}/{DATABASE}'
 else:
-    # 默认 MySQL / MariaDB (驱动 pymysql)
-    DB_URI = f'mysql+pymysql://{USERNAME}:{PASSWORD}@{HOSTNAME}:{PORT}/{DATABASE}?charset=utf8mb4'
+    # MySQL / MariaDB 统一采用 pymysql 驱动并指定 utf8mb4 字符集
+    auth_prefix = f"{auth_part}@" if auth_part else ""
+    DB_URI = f'mysql+pymysql://{auth_prefix}{HOSTNAME}:{PORT}/{DATABASE}?charset=utf8mb4'
 
 SQLALCHEMY_DATABASE_URI = DB_URI
 SQLALCHEMY_TRACK_MODIFICATIONS = False
+SQLALCHEMY_ENGINE_OPTIONS = {
+    'pool_pre_ping': True,  # 开启心跳检测，自动回收断开连接，避免数据库超时闪断
+    'pool_recycle': 3600,   # 每小时回收连接，防止连接池泄漏
+}
 
 # 上传配置
 UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')

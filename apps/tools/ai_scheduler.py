@@ -9,8 +9,9 @@ from croniter import croniter
 from apps.exts import db
 from apps.models.model import Posts, Categories, Tags, PostCategories, PostTags, Config
 from apps.tools.llm import llm_chat_completion
+from apps.tools.logger import scheduler_logger
 
-logger = logging.getLogger(__name__)
+logger = scheduler_logger
 
 # ── 内存滚动日志与调度器状态控制 ──
 _LOG_QUEUE = deque(maxlen=200)
