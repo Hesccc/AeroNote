@@ -514,6 +514,108 @@ def _adapt_sql_for_target_dialect(stmt: str, is_pg: bool) -> str:
     return cleaned
 
 
+def _execute_sql_dump(sql_text: str):
+    """
+    批量执行 SQL 文本并实施跨方言适配、安全拦截与事务隔离保护。
+    返回: (executed_count, errors)
+    """
+    raw_statements = _split_sql_statements(sql_text)
+    executed_count = 0
+    errors = []
+
+    # 允许的安全前缀白名单（涵盖 MySQL, MariaDB 及 PostgreSQL 常用恢复指令）
+    ALLOWED_VERBS = (
+        'set', 'create table', 'drop table', 'insert into', 'lock tables', 'unlock tables',
+        'alter table', 'truncate table', 'create index', 'drop index', 'select setval'
+    )
+
+    # 严厉禁止的高危危险特征黑名单 (防提权、防木马写出、防本地任意文件读取)
+    FORBIDDEN_KEYWORDS = (
+        'into outfile', 'into dumpfile', 'load_file', 'load data',
+        'create user', 'drop user', 'grant ', 'revoke ', 'alter user',
+        'shutdown', 'super', 'process', 'information_schema', 'mysql.'
+    )
+
+    dialect = db.engine.dialect.name.lower()
+    is_pg = ('postgres' in dialect)
+
+    if not is_pg:
+        try:
+            db.session.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
+        except Exception:
+            pass
+
+    for raw_stmt in raw_statements:
+        # 跨方言语法自适应转换
+        stmt_to_run = _adapt_sql_for_target_dialect(raw_stmt, is_pg=is_pg)
+        if not stmt_to_run:
+            continue
+
+        lower_stmt = stmt_to_run.lower()
+
+        # 1. 拦截高危指令
+        if any(forbidden in lower_stmt for forbidden in FORBIDDEN_KEYWORDS):
+            errors.append("安全拦截: 语句包含受限系统级高危关键字")
+            continue
+
+        # 2. 白名单前缀验证
+        if not any(lower_stmt.startswith(verb) for verb in ALLOWED_VERBS):
+            errors.append(f"安全拦截: 不在允许执行的数据库恢复语句白名单内 ({stmt_to_run[:30]})")
+            continue
+
+        # 3. 执行语句（在 PostgreSQL 下使用 Savepoint 子事务隔离，避免单个非关键指令错误导致事务整体 Abort）
+        if is_pg:
+            try:
+                with db.session.begin_nested():
+                    db.session.execute(text(stmt_to_run))
+                executed_count += 1
+            except Exception as e:
+                errors.append(str(e)[:120])
+        else:
+            try:
+                db.session.execute(text(stmt_to_run))
+                executed_count += 1
+            except Exception as e:
+                errors.append(str(e)[:120])
+
+    if is_pg:
+        # 自动校准与对齐所有表的主键自增序列，防止后续插入新数据时发生主键冲突
+        try:
+            inspector = db.inspect(db.engine)
+            for tbl in inspector.get_table_names():
+                try:
+                    with db.session.begin_nested():
+                        seq_sql = f"""
+                        SELECT setval(
+                            pg_get_serial_sequence('"{tbl}"', 'id'),
+                            COALESCE((SELECT MAX(id) FROM "{tbl}"), 1)
+                        );
+                        """
+                        db.session.execute(text(seq_sql))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+    else:
+        try:
+            db.session.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
+        except Exception:
+            pass
+
+    db.session.commit()
+    return executed_count, errors
+
+
+def _is_safe_path(base_dir: Path, target_path: Path) -> bool:
+    """防止 ZIP 压缩包目录穿越风险 (Zip Slip 漏洞防御)。"""
+    try:
+        base_dir = base_dir.resolve()
+        target_path = target_path.resolve()
+        return base_dir in target_path.parents or base_dir == target_path
+    except Exception:
+        return False
+
+
 @api_backup.route('/api/manage/backups/restore/sql', methods=['POST'])
 @token_required
 def restore_database_from_sql():
@@ -537,86 +639,8 @@ def restore_database_from_sql():
     if not sql_text:
         return jsonify({'msg': '请选择要恢复的 SQL 备份文件'}), 400
 
-    # 智能解析拆分 SQL 语句（防止将文章内容或字符串中的分号破坏截断）
-    raw_statements = _split_sql_statements(sql_text)
-    executed_count = 0
-    errors = []
-
-    # 允许的安全前缀白名单（涵盖 MySQL, MariaDB 及 PostgreSQL 常用恢复指令）
-    ALLOWED_VERBS = (
-        'set', 'create table', 'drop table', 'insert into', 'lock tables', 'unlock tables',
-        'alter table', 'truncate table', 'create index', 'drop index', 'select setval'
-    )
-
-    # 严厉禁止的高危危险特征黑名单 (防提权、防木马写出、防本地任意文件读取)
-    FORBIDDEN_KEYWORDS = (
-        'into outfile', 'into dumpfile', 'load_file', 'load data',
-        'create user', 'drop user', 'grant ', 'revoke ', 'alter user',
-        'shutdown', 'super', 'process', 'information_schema', 'mysql.'
-    )
-
-    dialect = db.engine.dialect.name.lower()
-    is_pg = ('postgres' in dialect)
-
     try:
-        if not is_pg:
-            db.session.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
-
-        for raw_stmt in raw_statements:
-            # 跨方言语法自适应转换
-            stmt_to_run = _adapt_sql_for_target_dialect(raw_stmt, is_pg=is_pg)
-            if not stmt_to_run:
-                continue
-
-            lower_stmt = stmt_to_run.lower()
-
-            # 1. 拦截高危指令
-            if any(forbidden in lower_stmt for forbidden in FORBIDDEN_KEYWORDS):
-                errors.append("安全拦截: 语句包含受限系统级高危关键字")
-                continue
-
-            # 2. 白名单前缀验证
-            if not any(lower_stmt.startswith(verb) for verb in ALLOWED_VERBS):
-                errors.append(f"安全拦截: 不在允许执行的数据库恢复语句白名单内 ({stmt_to_run[:30]})")
-                continue
-
-            # 3. 执行语句（在 PostgreSQL 下使用 Savepoint 子事务隔离，避免单个非关键指令错误导致事务整体 Abort）
-            if is_pg:
-                try:
-                    with db.session.begin_nested():
-                        db.session.execute(text(stmt_to_run))
-                    executed_count += 1
-                except Exception as e:
-                    errors.append(str(e)[:120])
-            else:
-                try:
-                    db.session.execute(text(stmt_to_run))
-                    executed_count += 1
-                except Exception as e:
-                    errors.append(str(e)[:120])
-
-        if is_pg:
-            # 自动校准与对齐所有表的主键自增序列，防止后续插入新数据时发生主键冲突
-            try:
-                inspector = db.inspect(db.engine)
-                for tbl in inspector.get_table_names():
-                    try:
-                        with db.session.begin_nested():
-                            seq_sql = f"""
-                            SELECT setval(
-                                pg_get_serial_sequence('"{tbl}"', 'id'),
-                                COALESCE((SELECT MAX(id) FROM "{tbl}"), 1)
-                            );
-                            """
-                            db.session.execute(text(seq_sql))
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-        else:
-            db.session.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
-
-        db.session.commit()
+        executed_count, errors = _execute_sql_dump(sql_text)
     except Exception as e:
         db.session.rollback()
         return jsonify({'msg': f'数据库还原失败: {str(e)}'}), 500
@@ -627,3 +651,96 @@ def restore_database_from_sql():
         'has_errors': len(errors) > 0,
         'error_samples': errors[:3]
     })
+
+
+@api_backup.route('/api/manage/backups/restore/full', methods=['POST'])
+@token_required
+def restore_full_site():
+    """一键恢复全站：从全量备份 ZIP 包（包含 SQL 与 uploads 静态附件）一键完整还原整站。"""
+    zip_bytes = None
+    target_zip_file = None
+
+    if 'file' in request.files:
+        f = request.files['file']
+        zip_bytes = f.read()
+    else:
+        data = request.get_json() or {}
+        filename = data.get('filename')
+        if filename:
+            clean_name = Path(filename).name
+            target = BACKUP_DIR / clean_name
+            if target.is_file():
+                target_zip_file = target
+
+    if not zip_bytes and not target_zip_file:
+        return jsonify({'msg': '请选择或上传要恢复的全站 ZIP 备份包'}), 400
+
+    from apps.tools.logger import app_logger
+
+    try:
+        zip_source = io.BytesIO(zip_bytes) if zip_bytes else target_zip_file
+        with zipfile.ZipFile(zip_source, 'r') as zf:
+            namelist = zf.namelist()
+
+            # 1. 寻找 SQL Dump 文件并执行恢复
+            sql_file = None
+            for candidate in ('database/dump.sql', 'dump.sql'):
+                if candidate in namelist:
+                    sql_file = candidate
+                    break
+            if not sql_file:
+                for name in namelist:
+                    if name.lower().endswith('.sql') and not name.startswith('__MACOSX'):
+                        sql_file = name
+                        break
+
+            executed_sql_count = 0
+            sql_errors = []
+            if sql_file:
+                sql_data = zf.read(sql_file).decode('utf-8', errors='ignore')
+                executed_sql_count, sql_errors = _execute_sql_dump(sql_data)
+
+            # 2. 还原 uploads 静态附件与图片
+            restored_files_count = 0
+            upload_base = Path(config.UPLOAD_PATH)
+            upload_base.mkdir(parents=True, exist_ok=True)
+
+            for member in zf.infolist():
+                if member.is_dir():
+                    continue
+                norm_name = member.filename.replace('\\', '/')
+                if norm_name.startswith('__MACOSX'):
+                    continue
+
+                dest_path = None
+                if norm_name.startswith('uploads/'):
+                    rel_path = norm_name[len('uploads/'):]
+                    if rel_path:
+                        dest_path = upload_base / rel_path
+                elif norm_name.startswith('temp/images/'):
+                    rel_path = norm_name[len('temp/images/'):]
+                    if rel_path:
+                        dest_path = Path(config.CACHE_IMAGE_DIR) / rel_path
+
+                if dest_path:
+                    # 路径穿越安全校验 (Zip Slip)
+                    allowed_base = upload_base if norm_name.startswith('uploads/') else Path(config.CACHE_IMAGE_DIR)
+                    if _is_safe_path(allowed_base, dest_path):
+                        dest_path.parent.mkdir(parents=True, exist_ok=True)
+                        dest_path.write_bytes(zf.read(member.filename))
+                        restored_files_count += 1
+
+            app_logger.info(
+                f"全站数据一键恢复完成: SQL执行 {executed_sql_count} 条，还原附件 {restored_files_count} 个"
+            )
+
+            return jsonify({
+                'msg': f'全站已成功一键恢复！共执行 {executed_sql_count} 条数据库指令，还原 {restored_files_count} 个静态图片附件。',
+                'executed_sql_count': executed_sql_count,
+                'restored_files_count': restored_files_count,
+                'has_errors': len(sql_errors) > 0,
+                'error_samples': sql_errors[:3]
+            })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'msg': f'全站一键恢复失败: {str(e)}'}), 500

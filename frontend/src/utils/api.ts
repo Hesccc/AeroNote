@@ -589,6 +589,21 @@ export const api = {
     });
   },
 
+  adminRestoreFullSite: (filename?: string, file?: File): Promise<{ msg: string; executed_sql_count: number; restored_files_count: number }> => {
+    if (file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      return apiFetch('/api/manage/backups/restore/full', {
+        method: 'POST',
+        body: formData,
+      });
+    }
+    return apiFetch('/api/manage/backups/restore/full', {
+      method: 'POST',
+      body: JSON.stringify({ filename }),
+    });
+  },
+
   // AI 自定义提示词配置 API
   aiGetPrompts: (): Promise<{ prompts: AiPromptItem[] }> => {
     return apiFetch('/api/manage/ai/prompts');

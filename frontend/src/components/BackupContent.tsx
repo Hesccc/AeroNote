@@ -10,6 +10,7 @@ export const BackupContent: React.FC = () => {
   const [msgType, setMsgType] = useState<'success' | 'error'>('success');
 
   const sqlFileRef = useRef<HTMLInputElement>(null);
+  const fullZipFileRef = useRef<HTMLInputElement>(null);
 
   const showMsg = (text: string, type: 'success' | 'error' = 'success') => {
     setMsg(text);
@@ -119,6 +120,42 @@ export const BackupContent: React.FC = () => {
     }
   };
 
+  // 从已有文件一键恢复全站
+  const handleRestoreFullSiteFromFile = async (filename: string) => {
+    if (!confirm(`⚠️ 高危操作警告：\n确定要使用全量容灾包「${filename}」一键恢复全站吗？\n当前数据库所有表和数据将被该备份完全重置覆盖，同时 uploads 图片库与静态附件也将同步还原！`)) return;
+    setOperating(`restore_full_${filename}`);
+    try {
+      const res = await api.adminRestoreFullSite(filename);
+      showMsg(res.msg || '全站一键恢复完成！');
+      loadBackups();
+    } catch (err: unknown) {
+      showMsg((err as Error).message || '全站恢复失败', 'error');
+    } finally {
+      setOperating(null);
+    }
+  };
+
+  // 上传 ZIP 文件一键恢复全站
+  const handleUploadFullSiteRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!confirm(`⚠️ 高危操作警告：\n确定要上传全站容灾包「${file.name}」并一键恢复全站吗？\n当前数据库所有表和数据将被完全重置覆盖，同时 uploads 图片库与静态附件也将同步还原！`)) {
+      if (fullZipFileRef.current) fullZipFileRef.current.value = '';
+      return;
+    }
+    setOperating('upload_full');
+    try {
+      const res = await api.adminRestoreFullSite(undefined, file);
+      showMsg(res.msg || '全站一键恢复完成！');
+      loadBackups();
+    } catch (err: unknown) {
+      showMsg((err as Error).message || '全站恢复失败', 'error');
+    } finally {
+      setOperating(null);
+      if (fullZipFileRef.current) fullZipFileRef.current.value = '';
+    }
+  };
+
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'markdown':
@@ -164,6 +201,22 @@ export const BackupContent: React.FC = () => {
           </div>
 
           <div className="backup-card-footer">
+            <input
+              type="file"
+              ref={fullZipFileRef}
+              accept=".zip"
+              style={{ display: 'none' }}
+              onChange={handleUploadFullSiteRestore}
+            />
+            <button
+              type="button"
+              className="backup-btn backup-btn-secondary"
+              onClick={() => fullZipFileRef.current?.click()}
+              disabled={!!operating}
+              title="上传全站 ZIP 备份包直接一键恢复整机数据与静态附件"
+            >
+              {operating === 'upload_full' ? '恢复中…' : '一键恢复全站'}
+            </button>
             <button
               type="button"
               className="backup-btn backup-btn-primary"
@@ -369,6 +422,18 @@ export const BackupContent: React.FC = () => {
                             title="从该 SQL 备份恢复数据库"
                           >
                             {operating === `restore_${b.filename}` ? '还原中…' : '恢复至此库'}
+                          </button>
+                        )}
+                        {(b.type === 'full' || (b.filename.endsWith('.zip') && b.filename.includes('full'))) && (
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-ghost admin-btn-sm"
+                            onClick={() => handleRestoreFullSiteFromFile(b.filename)}
+                            disabled={!!operating}
+                            title="一键将整机备份包（数据库及图片附件）还原至全站"
+                            style={{ color: '#a78bfa', borderColor: 'rgba(167, 139, 250, 0.4)' }}
+                          >
+                            {operating === `restore_full_${b.filename}` ? '全站还原中…' : '一键恢复全站'}
                           </button>
                         )}
                         <button
