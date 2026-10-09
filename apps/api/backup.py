@@ -341,12 +341,18 @@ def export_full_site_backup():
         sql_dump = _dump_database_to_sql()
         zf.writestr("database/dump.sql", sql_dump)
 
-        # 2. 写入全站 uploads 附件
+        # 2. 写入全站 uploads 附件与 temp/images 缓存图库
         upload_dir = Path(config.UPLOAD_PATH)
         if upload_dir.exists():
             for f in upload_dir.rglob('*'):
                 if f.is_file():
                     zf.write(f, f"uploads/{f.relative_to(upload_dir)}")
+
+        cache_image_dir = Path(config.CACHE_IMAGE_DIR)
+        if cache_image_dir.exists():
+            for f in cache_image_dir.rglob('*'):
+                if f.is_file():
+                    zf.write(f, f"temp/images/{f.relative_to(cache_image_dir)}")
 
         # 3. 写入说明与版本快照
         readme_text = [
@@ -355,7 +361,8 @@ def export_full_site_backup():
             f"包含组件:",
             f"  - database/dump.sql: 完整数据库表结构及全量数据 SQL",
             f"  - uploads/: 本地上传的静态图片与文章附件",
-            f"恢复方式: 导入 SQL 到 MySQL 数据库，并将 uploads 目录恢复至项目根目录即可。",
+            f"  - temp/images/: 历史自动生成与缓存的封面图片",
+            f"恢复方式: 在后台「数据备份中心」点击「一键恢复全站」并上传此 ZIP 包，即可整机完整还原。",
         ]
         zf.writestr("BACKUP_README.txt", "\n".join(readme_text))
 

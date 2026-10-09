@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ----------------------------------------------------
   # 1. 数据库服务 (默认使用轻量稳定的 MariaDB，亦可无缝切换 mysql:8.0 或 postgres:16-alpine)
@@ -39,10 +37,7 @@ services:
   # 2. AeroNote 全栈一体化服务 (Nginx + React SPA + Flask + Gunicorn)
   # ----------------------------------------------------
   aeronote:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: ${DOCKER_IMAGE:-hesccc/aeronote:latest}
+    image: hescc/aeronote:latest
     container_name: aeronote
     restart: unless-stopped
     depends_on:
