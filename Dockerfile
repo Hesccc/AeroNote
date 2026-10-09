@@ -57,7 +57,7 @@ COPY docker/entrypoint.sh /app/entrypoint.sh
 RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # 创建必要目录
-RUN mkdir -p uploads temp/images temp/backups
+RUN mkdir -p uploads temp/images temp/backups logs
 
 # 暴露统一 HTTP 服务端口
 EXPOSE 80

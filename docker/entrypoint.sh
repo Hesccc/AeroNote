@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-# 创建持久化和缓存目录
-mkdir -p /app/uploads /app/temp/images /app/temp/backups
+# 创建持久化、缓存和日志目录
+mkdir -p /app/uploads /app/temp/images /app/temp/backups /app/logs
 
 echo "=========================================="
 echo " Starting AeroNote All-in-One Service"
