@@ -505,8 +505,28 @@ def _adapt_sql_for_target_dialect(stmt: str, is_pg: bool) -> str:
             cleaned = '\n'.join(filtered_lines)
             cleaned = re.sub(r',\s*(\n\s*\))', r'\1', cleaned)
 
-        # 4. 反引号替换为 PostgreSQL 双引号
-        cleaned = cleaned.replace('`', '"')
+        # 4. 仅替换 SQL 标识符的反引号为 PostgreSQL 双引号（跳过单引号字符串字面量内部，保护 Markdown 中的代码块 ``` 与反引号）
+        res = []
+        in_sq = False
+        esc = False
+        for ch in cleaned:
+            if esc:
+                res.append(ch)
+                esc = False
+                continue
+            if ch == '\\':
+                res.append(ch)
+                esc = True
+                continue
+            if ch == "'":
+                in_sq = not in_sq
+                res.append(ch)
+                continue
+            if ch == '`' and not in_sq:
+                res.append('"')
+            else:
+                res.append(ch)
+        cleaned = "".join(res)
     else:
         # 目标是 MySQL，但输入可能是 PostgreSQL DDL
         if lower.startswith('create table'):

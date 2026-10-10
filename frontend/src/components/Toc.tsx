@@ -12,12 +12,17 @@ interface TocProps {
 }
 
 function parseToc(markdown: string): TocItem[] {
+  // 预先剔除代码块（``` ... ``` 或 ~~~ ... ~~~），避免代码块中的注释符号（如 # 注释）被误识别为文章标题
+  const cleanMarkdown = markdown
+    .replace(/^```[\s\S]*?^```/gm, '')
+    .replace(/^~~~[\s\S]*?^~~~/gm, '');
+
   const headingRegex = /^(#{1,4})\s+(.+)$/gm;
   const items: TocItem[] = [];
   let match: RegExpExecArray | null;
   const ids = new Map<string, number>();
 
-  while ((match = headingRegex.exec(markdown)) !== null) {
+  while ((match = headingRegex.exec(cleanMarkdown)) !== null) {
     const level = match[1].length;
     const text = match[2].trim().replace(/\*\*(.+?)\*\*/g, '$1');
     let id = slugify(text);
