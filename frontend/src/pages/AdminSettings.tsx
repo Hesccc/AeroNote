@@ -1237,14 +1237,57 @@ export const AdminSettings: React.FC = () => {
                     </div>
                   </div>
 
-                  <div style={{ padding: '0.9rem 1.1rem', background: 'var(--admin-input-bg)', border: '1px solid var(--admin-border)', borderRadius: 8, fontSize: '0.82rem', lineHeight: 1.6, color: 'var(--admin-text-2)' }}>
-                    💡 <strong>如何获取 Giscus 配置？</strong>
-                    <br />
-                    1. 确保您的 GitHub 仓库为 <strong>Public（公开）</strong>，且在仓库 <em>Settings → Features</em> 中勾选开启了 <strong>Discussions</strong>。
-                    <br />
-                    2. 在 GitHub 上安装 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--admin-primary)', textDecoration: 'underline' }}>Giscus App</a> 并授权该仓库。
-                    <br />
-                    3. 打开 <a href="https://giscus.app/zh-CN" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--admin-primary)', textDecoration: 'underline' }}>giscus.app</a> 官网，输入您的仓库名称，即可直接复制生成的 Repository ID 与 Category ID。
+                  <div style={{
+                    padding: '1.25rem',
+                    background: 'var(--admin-input-bg)',
+                    border: '1px solid var(--admin-border)',
+                    borderRadius: 10,
+                    marginBottom: '1rem',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <span style={{ fontSize: '1.2rem' }}>📖</span>
+                      <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--admin-text-1)' }}>
+                        Giscus 快速配置与接入指南
+                      </h4>
+                    </div>
+
+                    <div style={{ fontSize: '0.84rem', color: 'var(--admin-text-2)', lineHeight: 1.65, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                      <div>
+                        <strong>步骤 1：准备公开 GitHub 仓库并开启 Discussions</strong>
+                        <div style={{ color: 'var(--admin-text-3)', marginTop: '0.15rem' }}>
+                          确保目标仓库权限为 <code>Public</code>（私有仓库无法公开加载评论）。进入仓库 <em>Settings → General → Features</em> 区域，勾选开启 <strong>Discussions</strong>。
+                        </div>
+                      </div>
+
+                      <div>
+                        <strong>步骤 2：安装 Giscus GitHub App</strong>
+                        <div style={{ color: 'var(--admin-text-3)', marginTop: '0.15rem' }}>
+                          访问 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--admin-primary)', textDecoration: 'underline' }}>GitHub Giscus App</a>，点击 <em>Install</em> 并选择授权刚刚开启 Discussions 的目标仓库。
+                        </div>
+                      </div>
+
+                      <div>
+                        <strong>步骤 3：在 giscus.app 自动生成参数</strong>
+                        <div style={{ color: 'var(--admin-text-3)', marginTop: '0.15rem' }}>
+                          打开官方配置生成器 <a href="https://giscus.app/zh-CN" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--admin-primary)', textDecoration: 'underline' }}>https://giscus.app/zh-CN</a>：
+                          <ul style={{ margin: '0.35rem 0 0 1.25rem', padding: 0 }}>
+                            <li>在“仓库”输入框输入 <code>所有者/仓库名</code>（如 <code>Hesccc/AeroNote</code>），页面会自动解析出 <strong>data-repo-id</strong>。</li>
+                            <li>在“Discussion 分类”中选择分类（推荐 <code>Announcements</code>），页面会自动解析出 <strong>data-category-id</strong>。</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div>
+                        <strong>步骤 4：填入下方表单并保存</strong>
+                        <div style={{ color: 'var(--admin-text-3)', marginTop: '0.15rem' }}>
+                          将获取到的 <strong>仓库 ID</strong> 与 <strong>分类 ID</strong> 复制并填入下方对应输入框中，勾选“开启评论区”并点击页面底部「保存当前设置」即可生效！
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: '0.3rem', padding: '0.5rem 0.75rem', background: 'var(--admin-bg)', borderRadius: 6, border: '1px solid var(--admin-border)', fontSize: '0.78rem', color: 'var(--admin-text-3)' }}>
+                        💡 <strong>小贴士</strong>：AeroNote 前端已深度内置暗色模式无缝自适应（<code>transparent_dark</code> 与 <code>light</code> 动态切换），您无需在此调整主题代码。
+                      </div>
+                    </div>
                   </div>
 
                   <div className="admin-form-group">
