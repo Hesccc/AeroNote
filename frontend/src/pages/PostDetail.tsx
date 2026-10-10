@@ -7,6 +7,7 @@ import { ScrollNav } from '../components/ScrollNav';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
 import { Toc } from '../components/Toc';
 import { PostPosterModal } from '../components/PostPosterModal';
+import { GiscusComment } from '../components/GiscusComment';
 import {
   IconCalendar,
   IconClock,
@@ -307,6 +308,9 @@ export const PostDetail: React.FC = () => {
                   </Link>
                 </div>
               </footer>
+
+              {/* 3. 读者互动与评论区 (Giscus) */}
+              <GiscusComment postId={post.id} postTitle={post.title} />
             </article>
           </>
         )}

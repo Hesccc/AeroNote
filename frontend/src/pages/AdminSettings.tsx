@@ -103,6 +103,16 @@ const TABS: SettingTab[] = [
         </svg>
       ),
     },
+    {
+      id: 'comment',
+      name: '评论设置 (Giscus)',
+      desc: '基于 GitHub Discussions 的无服务器极客评论系统',
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      ),
+    },
   ];
 
 export const AdminSettings: React.FC = () => {
@@ -1192,6 +1202,123 @@ export const AdminSettings: React.FC = () => {
                       <div style={{ color: 'var(--admin-text-3)', fontSize: '0.8rem' }}>
                         💡 <strong>幂等特性保证</strong>：相同 <code>source_id</code>（或思源文档 ID）再次推送时，系统将智能就地更新该文章的标题、内容、分类与标签，而不会产生重复多余文章。
                       </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 9. Giscus Comment Settings */}
+              {activeTab === 'comment' && (
+                <div className="settings-form-stack">
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Giscus 评论功能总开关</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.25rem' }}>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+                        <input
+                          type="radio"
+                          name="giscus_enabled"
+                          checked={config.giscus_enabled === 'true' || config.giscus_enabled === '1'}
+                          onChange={() => handleChange('giscus_enabled', 'true')}
+                        />
+                        <span>开启评论区</span>
+                      </label>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+                        <input
+                          type="radio"
+                          name="giscus_enabled"
+                          checked={config.giscus_enabled !== 'true' && config.giscus_enabled !== '1'}
+                          onChange={() => handleChange('giscus_enabled', 'false')}
+                        />
+                        <span>关闭评论区</span>
+                      </label>
+                    </div>
+                    <div className="admin-form-hint">
+                      开启后将在文章详情页底部加载 Giscus 评论区；若尚未配置仓库信息，前台会展示提示。
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '0.9rem 1.1rem', background: 'var(--admin-input-bg)', border: '1px solid var(--admin-border)', borderRadius: 8, fontSize: '0.82rem', lineHeight: 1.6, color: 'var(--admin-text-2)' }}>
+                    💡 <strong>如何获取 Giscus 配置？</strong>
+                    <br />
+                    1. 确保您的 GitHub 仓库为 <strong>Public（公开）</strong>，且在仓库 <em>Settings → Features</em> 中勾选开启了 <strong>Discussions</strong>。
+                    <br />
+                    2. 在 GitHub 上安装 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--admin-primary)', textDecoration: 'underline' }}>Giscus App</a> 并授权该仓库。
+                    <br />
+                    3. 打开 <a href="https://giscus.app/zh-CN" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--admin-primary)', textDecoration: 'underline' }}>giscus.app</a> 官网，输入您的仓库名称，即可直接复制生成的 Repository ID 与 Category ID。
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">GitHub 仓库名称 (Repo) *</label>
+                    <input
+                      type="text"
+                      value={config.giscus_repo || ''}
+                      onChange={e => handleChange('giscus_repo', e.target.value)}
+                      className="admin-form-control"
+                      placeholder="格式：所有者/仓库名，如 Hesccc/AeroNote"
+                    />
+                    <div className="admin-form-hint">必须是公开仓库，如 Hesccc/AeroNote</div>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">仓库唯一 ID (Repository ID) *</label>
+                    <input
+                      type="text"
+                      value={config.giscus_repo_id || ''}
+                      onChange={e => handleChange('giscus_repo_id', e.target.value)}
+                      className="admin-form-control"
+                      placeholder="如：R_kgDO..."
+                    />
+                    <div className="admin-form-hint">在 giscus.app 填入仓库名后自动生成的 data-repo-id</div>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Discussions 分类名 (Category)</label>
+                    <input
+                      type="text"
+                      value={config.giscus_category || ''}
+                      onChange={e => handleChange('giscus_category', e.target.value)}
+                      className="admin-form-control"
+                      placeholder="如：Announcements 或 General"
+                    />
+                    <div className="admin-form-hint">推荐使用 Announcements 分类（只有管理员可发主帖，读者可自由回复）</div>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">分类唯一 ID (Category ID) *</label>
+                    <input
+                      type="text"
+                      value={config.giscus_category_id || ''}
+                      onChange={e => handleChange('giscus_category_id', e.target.value)}
+                      className="admin-form-control"
+                      placeholder="如：DIC_kwDO..."
+                    />
+                    <div className="admin-form-hint">在 giscus.app 选择分类后自动生成的 data-category-id</div>
+                  </div>
+
+                  <div className="admin-form-row">
+                    <div className="admin-form-group">
+                      <label className="admin-form-label">文章与 Discussion 映射关系</label>
+                      <select
+                        value={config.giscus_mapping || 'pathname'}
+                        onChange={e => handleChange('giscus_mapping', e.target.value)}
+                        className="admin-form-control"
+                      >
+                        <option value="pathname">URL 路径 (pathname，推荐)</option>
+                        <option value="title">文章标题 (title)</option>
+                        <option value="og:title">文章 OpenGraph 标题</option>
+                      </select>
+                    </div>
+
+                    <div className="admin-form-group">
+                      <label className="admin-form-label">表情点赞 (Reactions)</label>
+                      <select
+                        value={config.giscus_reactions || '1'}
+                        onChange={e => handleChange('giscus_reactions', e.target.value)}
+                        className="admin-form-control"
+                      >
+                        <option value="1">开启 Reaction 表情互动</option>
+                        <option value="0">关闭 Reaction 表情互动</option>
+                      </select>
                     </div>
                   </div>
                 </div>

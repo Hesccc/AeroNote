@@ -7067,3 +7067,83 @@ img { max-width: 100%; display: block; }
   to { transform: rotate(360deg); }
 }
 
+/* ===========================
+   Giscus Comments Section
+   =========================== */
+.giscus-comment-section {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px dashed var(--border-color);
+}
+
+.giscus-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.giscus-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.giscus-header-title h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin: 0;
+}
+
+.giscus-header-icon {
+  font-size: 1.25rem;
+}
+
+.giscus-powered-by {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.giscus-powered-by a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.giscus-embed-wrap {
+  min-height: 180px;
+}
+
+.giscus-empty-hint {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-color);
+  color: var(--text-secondary);
+}
+
+.giscus-hint-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.giscus-empty-hint h4 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin: 0 0 0.5rem 0;
+}
+
+.giscus-empty-hint p {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  max-width: 520px;
+  margin: 0 auto;
+  color: var(--text-muted);
+}
+
+
