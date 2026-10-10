@@ -5206,10 +5206,11 @@ img { max-width: 100%; display: block; }
   }
 }
 
-/* ── Side Scroll Nav (文章内容右侧的上/下箭头按钮，滚动后显示，间隔 200px) ── */
+/* ── Side Scroll Nav (页面悬浮上/下箭头导航，贴合内容区域右侧) ── */
 .side-scroll-nav {
   position: fixed;
-  right: max(1rem, calc((100vw - min(92vw, clamp(740px, 60vw, 920px))) / 2 - 58px));
+  /* 优先贴合右边缘外部 16px，当窗口变窄时自动贴合视口右侧 1rem，绝不遮挡文章与卡片 */
+  left: min(calc(50vw + 550px + 16px), calc(100vw - 64px));
   top: 50%;
   transform: translateY(-50%);
   display: flex;
@@ -5220,6 +5221,23 @@ img { max-width: 100%; display: block; }
   visibility: hidden;
   pointer-events: none;
   transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* 首页及常规单卡板页面：内容区域较窄（约 920px），贴合 920px 卡板右侧 */
+.home-page .side-scroll-nav,
+.page-shell ~ .side-scroll-nav,
+.categories-page .side-scroll-nav,
+.tags-page .side-scroll-nav,
+.archives-page .side-scroll-nav {
+  left: min(calc(50vw + 460px + 16px), calc(100vw - 64px));
+}
+
+@media (max-width: 1240px) {
+  .post-detail-layout ~ .side-scroll-nav,
+  .side-scroll-nav {
+    left: auto;
+    right: 1rem;
+  }
 }
 
 .side-scroll-nav.visible {
