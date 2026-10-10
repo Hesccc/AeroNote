@@ -44,6 +44,14 @@ IS_POSTGRES = (DB_DIALECT == 'postgresql')
 PORT = DB_PORT_RAW or DEFAULT_PORT
 
 HOSTNAME = os.getenv('DB_HOST', '127.0.0.1')
+# 当在宿主机直接运行且 DB_HOST 设置为容器名 'db' 时，自动回退到 127.0.0.1 保证顺畅连接
+if HOSTNAME == 'db':
+    try:
+        import socket
+        socket.gethostbyname('db')
+    except Exception:
+        HOSTNAME = '127.0.0.1'
+
 DATABASE = os.getenv('DB_NAME', 'aeronote')
 USERNAME = os.getenv('DB_USER', DEFAULT_USER)
 PASSWORD = os.getenv('DB_PASSWORD', '')
