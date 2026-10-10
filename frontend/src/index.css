@@ -5209,8 +5209,8 @@ img { max-width: 100%; display: block; }
 /* ── Side Scroll Nav (页面悬浮上/下箭头导航，贴合内容区域右侧) ── */
 .side-scroll-nav {
   position: fixed;
-  /* 优先贴合右边缘外部 16px，当窗口变窄时自动贴合视口右侧 1rem，绝不遮挡文章与卡片 */
-  left: min(calc(50vw + 550px + 16px), calc(100vw - 64px));
+  /* 优先贴合右边缘外部 24px，在窗口变窄时自动靠右贴边 1rem，绝不遮挡文章与卡片 */
+  left: min(calc(50vw + 430px + 24px), calc(100vw - 64px));
   top: 50%;
   transform: translateY(-50%);
   display: flex;
@@ -5223,16 +5223,16 @@ img { max-width: 100%; display: block; }
   transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
-/* 首页及常规单卡板页面：内容区域较窄（约 920px），贴合 920px 卡板右侧 */
+/* 首页及常规单卡板页面：内容区域约 920px (半宽 460px)，贴合其右侧 */
 .home-page .side-scroll-nav,
 .page-shell ~ .side-scroll-nav,
 .categories-page .side-scroll-nav,
 .tags-page .side-scroll-nav,
 .archives-page .side-scroll-nav {
-  left: min(calc(50vw + 460px + 16px), calc(100vw - 64px));
+  left: min(calc(50vw + 460px + 20px), calc(100vw - 64px));
 }
 
-@media (max-width: 1240px) {
+@media (max-width: 1040px) {
   .post-detail-layout ~ .side-scroll-nav,
   .side-scroll-nav {
     left: auto;
@@ -6276,27 +6276,32 @@ img { max-width: 100%; display: block; }
   border: 1px solid var(--border-color);
 }
 
-/* ── Post Detail Page ── */
+/* ── Post Detail Page (文章正文居中，目录与导航左右对称环绕) ── */
 .post-detail-layout {
-  max-width: 1100px;
+  max-width: 860px;
+  width: 100%;
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 3rem;
   padding: 1.5rem 1.5rem 5rem;
+  position: relative;
+  box-sizing: border-box;
 }
 
-@media (max-width: 960px) {
-  .post-detail-layout {
-    grid-template-columns: 1fr;
-    gap: 2rem;
-  }
+/* 目录栏：作为悬挂侧边栏定位在正文左边缘外部 */
+.post-sidebar {
+  position: absolute;
+  top: 1.5rem;
+  right: calc(100% + 2rem);
+  width: 250px;
+}
+
+@media (max-width: 1400px) {
   .post-sidebar {
     display: none;
   }
 }
 
 .post-article-container {
+  width: 100%;
   min-width: 0;
 }
 
@@ -6627,7 +6632,7 @@ img { max-width: 100%; display: block; }
   top: calc(var(--navbar-height) + 2rem);
   max-height: calc(100vh - var(--navbar-height) - 4rem);
   overflow-y: auto;
-  padding-right: 1.5rem;
+  padding-right: 1.25rem;
   border-right: 1px solid var(--border-color);
 }
 
