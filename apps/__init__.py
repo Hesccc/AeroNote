@@ -44,7 +44,9 @@ def create_apps():
     # 静态上传文件访问 (不存在时返回 404，不触发 500 全局未捕获异常)
     @app.route('/uploads/<path:filename>')
     def uploaded_file(filename):
-        return send_from_directory(config.UPLOAD_PATH, filename)
+        response = send_from_directory(config.UPLOAD_PATH, filename)
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        return response
 
     # 静态临时/缓存文件访问 (temp/images)
     # 若物理文件已随环境重建丢失，自动平滑重定向至外部高质图源，杜绝 404 破图与系统告警

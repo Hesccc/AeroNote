@@ -323,7 +323,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ mode = 'system' })
   };
 
   useEffect(() => {
-    api.getConfig()
+    api.adminGetConfig()
       .then(data => { setConfig(data); setLoading(false); })
       .catch(err => { setError(err.message || '获取配置信息失败'); setLoading(false); });
     loadPromptsData();

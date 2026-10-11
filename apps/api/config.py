@@ -35,12 +35,36 @@ def get_robots_txt():
         )
     return Response(content, mimetype='text/plain')
 
+def _is_sensitive_config_key(key: str) -> bool:
+    """
+    判断配置键是否属于敏感鉴权、凭据或私有调度参数。
+    公开接口严禁返回任何敏感凭据。
+    """
+    k = key.lower()
+    # 展示性关键字排除（如 website_keywords 包含 key 但不是密码凭证）
+    if k in ('website_keywords',):
+        return False
+    # 精确匹配高危键
+    if k in ('open_api_token', 'ai_api_key', 'llm_api_key', 'llm_base_url', 'webhook_secret'):
+        return True
+    # 模式匹配：拦截包含 token, secret, password, key, llm 等敏感词
+    if any(sub in k for sub in ('_token', '_secret', 'password', 'api_key', 'llm_')):
+        return True
+    return False
+
 @api_config.route('/api/config', methods=['GET'])
 def get_config():
+    """前台公开配置接口：严格过滤所有敏感凭据与 API Key。"""
     configs = Config.query.all()
-    # 敏感配置项过滤，不暴露给前台匿名用户
-    sensitive_keys = {'open_api_token', 'ai_api_key'}
-    config_dict = {c.name: c.value for c in configs if c.name not in sensitive_keys}
+    config_dict = {c.name: c.value for c in configs if not _is_sensitive_config_key(c.name)}
+    return jsonify(config_dict)
+
+@api_config.route('/api/manage/config', methods=['GET'])
+@token_required
+def get_manage_config():
+    """管理端专属配置读取接口：需管理员 Token，返回包含 LLM 密钥在内的全量配置。"""
+    configs = Config.query.all()
+    config_dict = {c.name: c.value for c in configs}
     return jsonify(config_dict)
 
 @api_config.route('/api/manage/open-token', methods=['GET', 'POST'])

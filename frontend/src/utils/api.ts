@@ -340,6 +340,17 @@ export const api = {
     });
   },
 
+  adminGetConfig: (): Promise<Record<string, string>> => {
+    return apiFetch('/api/manage/config').then(data => {
+      try {
+        localStorage.setItem('blog_config', JSON.stringify(data));
+      } catch (e) {
+        console.error('Failed to cache admin config', e);
+      }
+      return data;
+    });
+  },
+
   adminUpdateConfig: (config: Record<string, string>): Promise<Record<string, string>> => {
     return apiFetch('/api/manage/config', {
       method: 'PUT',

@@ -450,10 +450,12 @@ def halo_recycle_post(post_name):
 # 4. 附件/图片上传 (Attachments)
 # ──────────────────────────────────────────────
 
+HALO_ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
 @api_halo.route('/apis/api.console.halo.run/v1alpha1/attachments/upload', methods=['POST'])
 @halo_auth_required
 def halo_upload_attachment():
-    """思源笔记内嵌图片上传自动转存"""
+    """思源笔记内嵌图片上传自动转存（实施严格文件扩展名白名单防范任意文件上传与 XSS）"""
     if 'file' not in request.files:
         return jsonify({'title': 'No file', 'status': 400}), 400
 
@@ -461,13 +463,23 @@ def halo_upload_attachment():
     if not file or not file.filename:
         return jsonify({'title': 'Invalid file', 'status': 400}), 400
 
+    orig_name = file.filename
+    if '.' not in orig_name:
+        return jsonify({'title': 'Invalid file extension', 'status': 400, 'detail': '上传文件必须包含合法扩展名'}), 400
+
+    ext = orig_name.rsplit('.', 1)[1].lower()
+    if ext not in HALO_ALLOWED_EXTENSIONS:
+        return jsonify({
+            'title': 'Unsupported Media Type',
+            'status': 400,
+            'detail': f'安全拦截：仅支持图片格式文件上传 ({", ".join(sorted(HALO_ALLOWED_EXTENSIONS))})'
+        }), 400
+
     now = datetime.now()
     year_month = now.strftime('%Y%m')
     save_dir = Path(config.UPLOAD_PATH) / 'images' / year_month
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    orig_name = file.filename
-    ext = orig_name.rsplit('.', 1)[1].lower() if '.' in orig_name else 'png'
     unique_name = f"{now.strftime('%d%H%M%S')}_{uuid.uuid4().hex[:8]}.{ext}"
     target_path = save_dir / unique_name
     file.save(str(target_path))

@@ -9,9 +9,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
 # 安全密钥
-SECRET_KEY = os.getenv('SECRET_KEY', 'default-dev-secret-key-please-change-in-env')
-if SECRET_KEY == 'default-dev-secret-key-please-change-in-env':
-    logging.warning('SECRET_KEY 正在使用内置默认值，生产环境务必在 .env 中配置随机强密钥！')
+import secrets as _secrets
+RAW_SECRET_KEY = os.getenv('SECRET_KEY', '').strip()
+if not RAW_SECRET_KEY or RAW_SECRET_KEY == 'default-dev-secret-key-please-change-in-env':
+    if os.getenv('FLASK_ENV', '').lower() == 'production':
+        # 生产环境如果未提供强密钥，为了杜绝默认弱密钥导致的 JWT 伪造风险，自动生成临时强随机密钥并严重警告
+        SECRET_KEY = _secrets.token_hex(32)
+        logging.error('【严重安全警告】生产环境未在 .env 中设置安全 SECRET_KEY！系统已生成临时随机强密钥保证安全，服务重启后历史 Token 将失效，请尽快在 .env 中配置固定随机强密钥！')
+    else:
+        SECRET_KEY = 'default-dev-secret-key-please-change-in-env'
+        logging.warning('SECRET_KEY 正在使用内置默认值，生产环境务必在 .env 中配置随机强密钥！')
+else:
+    SECRET_KEY = RAW_SECRET_KEY
 
 # CORS 允许的来源（逗号分隔），生产环境建议配置为具体前端域名
 CORS_ORIGINS = [o.strip() for o in os.getenv('CORS_ORIGINS', '*').split(',') if o.strip()]

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import type { Components } from 'react-markdown';
 import Prism from 'prismjs';
 import { slugify } from '../utils/slugify';
@@ -128,6 +129,23 @@ const baseComponents: Components = {
   ),
 };
 
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    code: [...(defaultSchema.attributes?.code || []), 'className'],
+    span: [...(defaultSchema.attributes?.span || []), 'className', 'style'],
+    div: [...(defaultSchema.attributes?.div || []), 'className', 'style'],
+    h1: [...(defaultSchema.attributes?.h1 || []), 'id'],
+    h2: [...(defaultSchema.attributes?.h2 || []), 'id'],
+    h3: [...(defaultSchema.attributes?.h3 || []), 'id'],
+    h4: [...(defaultSchema.attributes?.h4 || []), 'id'],
+    h5: [...(defaultSchema.attributes?.h5 || []), 'id'],
+    h6: [...(defaultSchema.attributes?.h6 || []), 'id'],
+    img: [...(defaultSchema.attributes?.img || []), 'src', 'alt', 'title', 'width', 'height', 'loading', 'style'],
+  },
+};
+
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   const headingCounts = new Map<string, number>();
   const components: Components = {
@@ -140,7 +158,11 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
 
   return (
     <div className="markdown-body">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={components}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
+        components={components}
+      >
         {content}
       </ReactMarkdown>
     </div>
