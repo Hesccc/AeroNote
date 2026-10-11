@@ -176,7 +176,7 @@ export const AdminCategories: React.FC<AdminCategoriesProps> = ({ activeTab = 'c
           <p>载入中...</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '1.5rem', alignItems: 'start' }}>
+        <div className="admin-crud-grid">
 
           {/* Left: Form Card */}
           <div className="admin-card">

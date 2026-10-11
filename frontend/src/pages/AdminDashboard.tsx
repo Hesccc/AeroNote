@@ -212,7 +212,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
             <div className="admin-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="dashboard-analytic-subgrid">
                 <div className="stat-analytic-box">
                   <span className="analytic-label">总撰写字数</span>
                   <span className="analytic-val">{stats ? (stats.total_words > 10000 ? `${(stats.total_words / 10000).toFixed(1)} 万字` : `${stats.total_words} 字`) : '--'}</span>
@@ -521,7 +521,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
             <div className="admin-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+              <div className="dashboard-tri-grid">
                 <div className="stat-analytic-box" style={{ padding: '0.75rem' }}>
                   <span className="analytic-label">待补齐分类</span>
                   <span className="analytic-val" style={{ fontSize: '1.15rem' }}>

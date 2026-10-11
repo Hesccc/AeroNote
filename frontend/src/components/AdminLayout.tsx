@@ -163,8 +163,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
     return 'light';
   });
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // 路由变化时自动收起手机端侧边栏抽屉
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -230,16 +236,105 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const username = localStorage.getItem('blog_username') || 'Admin';
   const initial = username.charAt(0).toUpperCase();
 
+  // 获取当前移动端顶部标题
+  const currentPath = location.pathname;
+  let currentTitle = '管理控制台';
+  if (currentPath === '/admin') currentTitle = '数据概览';
+  else if (currentPath === '/admin/posts') currentTitle = '文章管理';
+  else if (currentPath === '/admin/posts/new') currentTitle = '新建文章';
+  else if (currentPath.startsWith('/admin/posts/edit/')) currentTitle = '编辑文章';
+  else if (currentPath === '/admin/categories') currentTitle = '分类管理';
+  else if (currentPath === '/admin/tags') currentTitle = '标签管理';
+  else if (currentPath === '/admin/oss-images') currentTitle = '图片库';
+  else if (currentPath === '/admin/settings') currentTitle = '系统设置';
+  else if (currentPath === '/admin/ai-settings') currentTitle = 'AI 设置';
+  else if (currentPath === '/admin/backups') currentTitle = '备份中心';
+  else if (currentPath === '/admin/password') currentTitle = '修改密码';
+
   return (
     <div className="admin-wrapper">
+      {/* 手机端专用顶部导航栏 (<= 768px 显示) */}
+      <header className="admin-mobile-nav">
+        <div className="admin-mobile-nav-left">
+          <button
+            type="button"
+            className="admin-mobile-menu-toggle"
+            onClick={() => setMobileSidebarOpen(prev => !prev)}
+            aria-label="打开侧边菜单"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          <div className="admin-mobile-brand">
+            <span className="admin-mobile-brand-icon">⚙️</span>
+            <span className="admin-mobile-page-name">{currentTitle}</span>
+          </div>
+        </div>
+
+        <div className="admin-mobile-nav-right">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="admin-mobile-tool-btn"
+            title="切换明暗模式"
+            aria-label="切换色彩模式"
+          >
+            {theme === 'light' ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+              </svg>
+            )}
+          </button>
+          <Link to="/" className="admin-mobile-tool-btn" title="返回博客主页" aria-label="返回博客主页">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+          </Link>
+        </div>
+      </header>
+
+      {/* 手机端抽屉展开遮罩背景 */}
+      <div
+        className={`admin-drawer-overlay ${mobileSidebarOpen ? 'is-visible' : ''}`}
+        onClick={() => setMobileSidebarOpen(false)}
+        aria-hidden="true"
+      />
+
       <div className="admin-layout">
-        {/* Sidebar */}
-        <aside className="admin-sidebar">
+        {/* Sidebar (桌面端固定，手机端抽屉弹出) */}
+        <aside className={`admin-sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`}>
           {/* Brand */}
           <div className="admin-brand">
-            <div className="admin-brand-logo">
-              <div className="admin-brand-icon">⚙️</div>
-              <div className="admin-brand-title">管理控制台</div>
+            <div className="admin-brand-header">
+              <div className="admin-brand-logo">
+                <div className="admin-brand-icon">⚙️</div>
+                <div className="admin-brand-title">管理控制台</div>
+              </div>
+              <button
+                type="button"
+                className="admin-sidebar-close-btn"
+                onClick={() => setMobileSidebarOpen(false)}
+                aria-label="关闭侧边栏"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
             <div className="admin-brand-user">
               <div className="admin-brand-avatar" style={{ overflow: 'hidden', padding: 0 }}>
@@ -274,6 +369,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       to={item.to}
                       end={item.end}
                       className={({ isActive }) => isActive ? 'active' : ''}
+                      onClick={() => setMobileSidebarOpen(false)}
                     >
                       <span className="menu-icon">{item.icon}</span>
                       {item.label}
