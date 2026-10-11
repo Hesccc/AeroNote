@@ -307,14 +307,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         </div>
       </header>
 
-      {/* 手机端抽屉展开遮罩背景 */}
-      <div
-        className={`admin-drawer-overlay ${mobileSidebarOpen ? 'is-visible' : ''}`}
-        onClick={() => setMobileSidebarOpen(false)}
-        aria-hidden="true"
-      />
-
       <div className="admin-layout">
+        {/* 手机端抽屉展开遮罩背景 */}
+        <div
+          className={`admin-drawer-overlay ${mobileSidebarOpen ? 'is-visible' : ''}`}
+          onClick={() => setMobileSidebarOpen(false)}
+          aria-hidden="true"
+        />
+
         {/* Sidebar (桌面端固定，手机端抽屉弹出) */}
         <aside className={`admin-sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`}>
           {/* Brand */}

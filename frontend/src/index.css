@@ -1543,7 +1543,6 @@ img { max-width: 100%; display: block; }
   margin: 0;
   padding: 0;
   position: relative;
-  z-index: 1;
 }
 
 /* ===========================
@@ -7375,7 +7374,7 @@ img { max-width: 100%; display: block; }
     border-bottom: 1px solid var(--admin-border);
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 990;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
@@ -7460,39 +7459,48 @@ img { max-width: 100%; display: block; }
   .admin-drawer-overlay {
     display: block;
     position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    background: rgba(0, 0, 0, 0.65);
     z-index: 998;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.25s ease;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .admin-drawer-overlay.is-visible {
     opacity: 1;
     pointer-events: auto;
+    cursor: pointer;
   }
 
   /* 3. Drawer Sidebar */
   .admin-sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: 280px;
-    max-width: 82vw;
-    height: 100vh;
-    height: 100dvh;
-    z-index: 999;
-    box-shadow: 0 0 32px rgba(0, 0, 0, 0.45);
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 280px !important;
+    max-width: 82vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    z-index: 1001 !important;
+    background: var(--admin-sidebar-bg) !important;
+    box-shadow: 4px 0 32px rgba(0, 0, 0, 0.55);
     transform: translateX(-100%);
     transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
 
   .admin-sidebar.mobile-open {
-    transform: translateX(0);
+    transform: translateX(0) !important;
   }
 
   .admin-sidebar-close-btn {
@@ -7519,6 +7527,8 @@ img { max-width: 100%; display: block; }
     display: block;
     min-height: calc(100vh - 52px);
     width: 100%;
+    position: static;
+    z-index: auto;
   }
 
   .admin-content {
