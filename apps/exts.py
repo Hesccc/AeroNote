@@ -39,7 +39,7 @@ def init_exts(app):
             initialized = False
             for attempt in range(1, 11):
                 try:
-                    from apps.models.model import Config, User, Categories, Tags, Posts
+                    from apps.models.model import Config, User, Categories, Tags, Posts, PostCategories, PostTags
                     from apps.models.oss_image import OssImage  # noqa: F401
                     db.create_all()
                     initialized = True
@@ -88,13 +88,13 @@ def init_exts(app):
                 with db.session.no_autoflush:
                     if Config.query.first() is None:
                         configs = [
-                            Config(id=1, name='website_url', value='https://hesc.info'),
+                            Config(id=1, name='website_url', value='https://example.com'),
                             Config(id=2, name='website_title', value='AeroNote'),
-                            Config(id=3, name='website_keywords', value='Splunk;Python;Shell;MySQL;Linux;Docker;AI'),
-                            Config(id=4, name='website_desc', value='记录技术沉淀 · 分享生活思考 · 散漫而行'),
-                            Config(id=5, name='website_icp', value='湘ICP备20003211号-2'),
-                            Config(id=6, name='about_profile_subtitle', value='💻 不专业的黑客 / 安全运营 / Splunk专家 / 技术博主'),
-                            Config(id=7, name='homepage_subtitle', value='记录技术 · 分享生活 · 散漫而行')
+                            Config(id=3, name='website_keywords', value='博客;技术笔记;数字花园;工程实践'),
+                            Config(id=4, name='website_desc', value='记录技术实践与工程思考，于碎片化网络中保持专注与沉淀'),
+                            Config(id=5, name='website_icp', value=''),
+                            Config(id=6, name='about_profile_subtitle', value='独立技术记录者 / 全栈探索者'),
+                            Config(id=7, name='homepage_subtitle', value='记录技术沉淀 · 分享工程思考 · 散漫而行')
                         ]
                         db.session.add_all(configs)
 
@@ -103,9 +103,9 @@ def init_exts(app):
                             id=1,
                             username='admin',
                             password=generate_password('admin'),
-                            email='mr.hesc@outlook.com',
+                            email='admin@example.com',
                             name='管理员',
-                            description='管理员账号',
+                            description='系统默认超级管理员账号',
                             create_time=datetime.now(),
                             update_time=datetime.now(),
                             deleted=0
@@ -114,21 +114,18 @@ def init_exts(app):
 
                     if Categories.query.first() is None:
                         categories = [
-                            Categories(id=1, name='默认分类', description='这是你的默认分类，如不需要，删除即可。', slug='default', color='#41baff', create_time=datetime.now(), update_time=datetime.now(), deleted=0, parent_id=0),
-                            Categories(id=2, name='Oracle', description='Oracle', slug='oracle', color='#41baff', create_time=datetime.now(), update_time=datetime.now(), deleted=0, parent_id=0),
-                            Categories(id=3, name='Splunk', description='Splunk分类', slug='splunk', color='#41baff', create_time=datetime.now(), update_time=datetime.now(), deleted=0, parent_id=0)
+                            Categories(id=1, name='默认分类', description='这是你的默认分类，如不需要，删除即可。', slug='default', color='#41baff', create_time=datetime.now(), update_time=datetime.now(), deleted=0, parent_id=0)
                         ]
                         db.session.add_all(categories)
 
                     if Tags.query.first() is None:
                         tags = [
-                            Tags(id=1, name='Oracle', slug='oracle', color='#c12323', create_time=datetime.now(), deleted=0),
-                            Tags(id=2, name='Nginx', slug='nginx', color='#06bb5a', create_time=datetime.now(), deleted=0),
-                            Tags(id=3, name='Linux', slug='linux', color='#2d7ac7', create_time=datetime.now(), deleted=0)
+                            Tags(id=1, name='默认标签', slug='default', color='#41baff', create_time=datetime.now(), deleted=0)
                         ]
                         db.session.add_all(tags)
 
                     if Posts.query.first() is None:
+                        now = datetime.now()
                         hello_post = Posts(
                             id=1,
                             title='Hello World',
@@ -136,11 +133,29 @@ def init_exts(app):
                             content='欢迎使用个人技术博客系统！这是你的第一篇文章。',
                             access_count=0,
                             status=0,
-                            create_time=datetime.now(),
-                            update_time=datetime.now(),
+                            create_time=now,
+                            update_time=now,
                             deleted=0
                         )
                         db.session.add(hello_post)
+
+                        # 关联默认分类与默认标签
+                        db.session.add(PostCategories(
+                            id=1,
+                            post_id=1,
+                            category_id=1,
+                            create_time=now,
+                            update_time=now,
+                            deleted=0
+                        ))
+                        db.session.add(PostTags(
+                            id=1,
+                            post_id=1,
+                            tag_id=1,
+                            create_time=now,
+                            update_time=now,
+                            deleted=0
+                        ))
 
                 db.session.commit()
 
@@ -149,7 +164,7 @@ def init_exts(app):
                     try:
                         from sqlalchemy import inspect
                         insp = inspect(db.engine)
-                        for tbl in ('config', 'users', 'categories', 'tags', 'posts'):
+                        for tbl in ('config', 'users', 'categories', 'tags', 'posts', 'post_categories', 'post_tags'):
                             if tbl in insp.get_table_names():
                                 seq_sql = f"""
                                 SELECT setval(

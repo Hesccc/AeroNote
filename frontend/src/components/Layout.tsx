@@ -90,6 +90,45 @@ export const Layout: React.FC<LayoutProps> = ({ children, hero }) => {
     }
   }, [config.website_icon]);
 
+  // 动态 SEO 搜索引擎元标签注入（支持后台一键开关禁止爬虫收录）
+  useEffect(() => {
+    // 检查 SEO 检索总开关：默认允许，若显式设为 'false' 或 '0' 则彻底禁止抓取
+    const isSeoDisallowed = config.seo_enabled === 'false' || config.seo_enabled === '0';
+
+    // 1. 处理 robots meta 标签
+    let robotsMeta = document.querySelector('meta[name="robots"]') as HTMLMetaElement | null;
+    if (!robotsMeta) {
+      robotsMeta = document.createElement('meta');
+      robotsMeta.name = 'robots';
+      document.head.appendChild(robotsMeta);
+    }
+
+    if (isSeoDisallowed) {
+      // 彻底阻断收录：不允许索引页面、不允许跟踪链接、不建立快照
+      robotsMeta.content = 'noindex, nofollow, noarchive, nosnippet';
+    } else {
+      robotsMeta.content = 'index, follow';
+    }
+
+    // 2. 处理 keywords meta 标签
+    let keywordsMeta = document.querySelector('meta[name="keywords"]') as HTMLMetaElement | null;
+    if (!keywordsMeta) {
+      keywordsMeta = document.createElement('meta');
+      keywordsMeta.name = 'keywords';
+      document.head.appendChild(keywordsMeta);
+    }
+    keywordsMeta.content = isSeoDisallowed ? '' : (config.website_keywords || '');
+
+    // 3. 处理 description meta 标签
+    let descMeta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+    if (!descMeta) {
+      descMeta = document.createElement('meta');
+      descMeta.name = 'description';
+      document.head.appendChild(descMeta);
+    }
+    descMeta.content = isSeoDisallowed ? '' : (config.website_desc || '');
+  }, [config.seo_enabled, config.website_keywords, config.website_desc]);
+
   // 全局动态网页标题更新
   useEffect(() => {
     const updateTitle = () => {
@@ -199,8 +238,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, hero }) => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
-  const siteTitle = config.website_title || 'AeroNote';
-  const siteICP = config.website_icp || '湘ICP备20003211号-1';
+  const siteTitle = config.website_title || '';
+  const siteICP = config.website_icp || '';
 
   return (
     <div className="site-wrapper">

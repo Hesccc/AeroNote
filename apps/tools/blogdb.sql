@@ -2,7 +2,8 @@
 SQLyog Ultimate v12.08 (64 bit)
 MySQL - 8.2.0 : Database - blogdb
 *********************************************************************
-*/
+*/
+
 
 /*!40101 SET NAMES utf8 */;
 
@@ -63,7 +64,7 @@ CREATE TABLE `config` (
 
 LOCK TABLES `config` WRITE;
 
-insert  into `config`(`id`,`name`,`value`) values (1,'website_url','https://hesc.info'),(2,'website_title','AeroNote'),(3,'website_keywords','Splunk;Python;Shell;MySQL;Linux;Docker;AI'),(4,'website_desc','记录技术沉淀 · 分享生活思考 · 散漫而行'),(5,'website_icp','湘ICP备20003211号-2');
+insert  into `config`(`id`,`name`,`value`) values (1,'website_url','https://example.com'),(2,'website_title','AeroNote'),(3,'website_keywords','博客;技术笔记;数字花园;工程实践'),(4,'website_desc','记录技术实践与工程思考，于碎片化网络中保持专注与沉淀'),(5,'website_icp','');
 
 UNLOCK TABLES;
 
@@ -209,7 +210,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 
-insert  into `users`(`id`,`username`,`password`,`email`,`name`,`description`,`create_time`,`deleted`,`update_time`) values (1,'admin','e6e061838856bf47e1de730719fb2609','mr.hesc@outlook.com','管理员','管理员账号','2024-01-06 17:46:08',0,NULL);
+insert  into `users`(`id`,`username`,`password`,`email`,`name`,`description`,`create_time`,`deleted`,`update_time`) values (1,'admin','e6e061838856bf47e1de730719fb2609','admin@example.com','管理员','系统默认超级管理员账号','2024-01-06 17:46:08',0,NULL);
 
 UNLOCK TABLES;
 

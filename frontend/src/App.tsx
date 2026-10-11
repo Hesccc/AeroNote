@@ -35,7 +35,8 @@ function App() {
         <Route path="/admin/posts/edit/:id" element={<AdminPostEdit />} />
         <Route path="/admin/categories" element={<AdminCategories activeTab="categories" />} />
         <Route path="/admin/tags" element={<AdminCategories activeTab="tags" />} />
-        <Route path="/admin/settings" element={<AdminSettings />} />
+        <Route path="/admin/settings" element={<AdminSettings mode="system" />} />
+        <Route path="/admin/ai-settings" element={<AdminSettings mode="ai" />} />
         <Route path="/admin/password" element={<AdminPassword />} />
         <Route path="/admin/oss-images" element={<AdminOssImages />} />
         <Route path="/admin/backups" element={<AdminBackups />} />

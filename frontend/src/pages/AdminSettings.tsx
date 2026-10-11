@@ -9,7 +9,7 @@ interface SettingTab {
   icon: React.ReactNode;
 }
 
-const TABS: SettingTab[] = [
+const SYSTEM_TABS: SettingTab[] = [
   {
     id: 'basic',
     name: '站点信息',
@@ -55,6 +55,30 @@ const TABS: SettingTab[] = [
     ),
   },
   {
+    id: 'comment',
+    name: '评论设置 (Giscus)',
+    desc: '基于 GitHub Discussions 的无服务器极客评论系统',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'open-api',
+    name: '开放 API 与同步',
+    desc: '思源笔记、Obsidian 及外部 Webhook 推送密钥与配置',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      </svg>
+    ),
+  }
+];
+
+const AI_TABS: SettingTab[] = [
+  {
     id: 'ai',
     name: 'AI 大模型',
     desc: 'OpenAI 协议大模型接口、API Key 与模型设定',
@@ -67,55 +91,40 @@ const TABS: SettingTab[] = [
       </svg>
     ),
   },
-    {
-      id: 'ai-scheduler',
-      name: 'AI 定时任务',
-      desc: '自动化提取分类/标签/摘要任务管理与执行日志',
-      icon: (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
-        </svg>
-      ),
-    },
-    {
-      id: 'ai-prompts',
-      name: 'AI 提示词配置',
-      desc: '按任务项分类自定义各功能 Prompt 与模板变量',
-      icon: (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-          <line x1="16" y1="13" x2="8" y2="13" />
-          <line x1="16" y1="17" x2="8" y2="17" />
-          <polyline points="10 9 9 9 8 9" />
-        </svg>
-      ),
-    },
-    {
-      id: 'open-api',
-      name: '开放 API 与同步',
-      desc: '思源笔记、Obsidian 及外部 Webhook 推送密钥与配置',
-      icon: (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-        </svg>
-      ),
-    },
-    {
-      id: 'comment',
-      name: '评论设置 (Giscus)',
-      desc: '基于 GitHub Discussions 的无服务器极客评论系统',
-      icon: (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-      ),
-    },
-  ];
+  {
+    id: 'ai-scheduler',
+    name: 'AI 定时任务',
+    desc: '自动化提取分类/标签/摘要任务管理与执行日志',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
+    ),
+  },
+  {
+    id: 'ai-prompts',
+    name: 'AI 提示词配置',
+    desc: '按任务项分类自定义各功能 Prompt 与模板变量',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+        <polyline points="10 9 9 9 8 9" />
+      </svg>
+    ),
+  },
+];
 
-export const AdminSettings: React.FC = () => {
+interface AdminSettingsProps {
+  mode?: 'system' | 'ai';
+}
+
+export const AdminSettings: React.FC<AdminSettingsProps> = ({ mode = 'system' }) => {
+  const isAiMode = mode === 'ai';
+  const TABS = isAiMode ? AI_TABS : SYSTEM_TABS;
   const [config, setConfig] = useState<Record<string, string>>(() => {
     try {
       const cached = localStorage.getItem('blog_config');
@@ -125,7 +134,11 @@ export const AdminSettings: React.FC = () => {
     }
   });
 
-  const [activeTab, setActiveTab] = useState('basic');
+  const [activeTab, setActiveTab] = useState(() => isAiMode ? 'ai' : 'basic');
+
+  useEffect(() => {
+    setActiveTab(isAiMode ? 'ai' : 'basic');
+  }, [isAiMode]);
   const [loading, setLoading] = useState(() => Object.keys(config).length === 0);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -364,8 +377,12 @@ export const AdminSettings: React.FC = () => {
     <AdminLayout>
       <div className="admin-page-header">
         <div>
-          <div className="admin-page-title">系统设置</div>
-          <div className="admin-page-subtitle">管理全站全局配置、SEO 检索、前台视觉与作者自述</div>
+          <div className="admin-page-title">{isAiMode ? 'AI 设置' : '系统设置'}</div>
+          <div className="admin-page-subtitle">
+            {isAiMode
+              ? '管理大模型接口调用凭证、自动化异步调度任务与提示词工程模板'
+              : '管理全站全局配置、SEO 检索、前台视觉与作者自述'}
+          </div>
         </div>
       </div>
 
@@ -444,7 +461,7 @@ export const AdminSettings: React.FC = () => {
                       value={config.website_icp || ''}
                       onChange={e => handleChange('website_icp', e.target.value)}
                       className="admin-form-control"
-                      placeholder="如：湘ICP备20003211号-1"
+                      placeholder="如：京ICP备12345678号-1"
                     />
                     <div className="admin-form-hint">展示在全站底部的工信部合规备案凭证，支持自动跳转查询</div>
                   </div>
@@ -547,13 +564,68 @@ export const AdminSettings: React.FC = () => {
               {activeTab === 'seo' && (
                 <div className="settings-form-stack">
                   <div className="admin-form-group">
+                    <label className="admin-form-label">搜索引擎收录总开关</label>
+                    <div style={{ marginTop: '0.35rem' }}>
+                      <div
+                        className="giscus-switch-pill"
+                        role="group"
+                        aria-label="搜索引擎收录开关"
+                        style={{ width: '220px' }}
+                      >
+                        <div
+                          className={`giscus-switch-slider ${
+                            config.seo_enabled === 'false' || config.seo_enabled === '0'
+                              ? 'active-off'
+                              : 'active-on'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          className={`giscus-switch-item ${
+                            config.seo_enabled !== 'false' && config.seo_enabled !== '0'
+                              ? 'is-selected'
+                              : ''
+                          }`}
+                          onClick={() => handleChange('seo_enabled', 'true')}
+                        >
+                          <span className="giscus-switch-dot" />
+                          允许收录
+                        </button>
+                        <button
+                          type="button"
+                          className={`giscus-switch-item ${
+                            config.seo_enabled === 'false' || config.seo_enabled === '0'
+                              ? 'is-selected'
+                              : ''
+                          }`}
+                          onClick={() => handleChange('seo_enabled', 'false')}
+                        >
+                          <span className="giscus-switch-dot" />
+                          禁止收录
+                        </button>
+                      </div>
+                    </div>
+                    <div className="admin-form-hint">
+                      {config.seo_enabled === 'false' || config.seo_enabled === '0' ? (
+                        <span style={{ color: 'var(--admin-danger)' }}>
+                          ⚠️ 当前已开启隐私防爬模式：服务端 <code>/robots.txt</code> 将全站 <code>Disallow: /</code>，网页 Head 自动注入 <code>noindex, nofollow, noarchive</code>，彻底阻止百度、Google、Bing 等爬虫抓取。
+                        </span>
+                      ) : (
+                        <span>
+                          开启后允许主流搜索引擎爬虫抓取并建立索引；后台接口与管理页面自动配置排他保护。
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="admin-form-group">
                     <label className="admin-form-label">全局关键词 (Meta Keywords)</label>
                     <input
                       type="text"
                       value={config.website_keywords || ''}
                       onChange={e => handleChange('website_keywords', e.target.value)}
                       className="admin-form-control"
-                      placeholder="如：Splunk; Python; Linux; 安全运营; 运维自动化"
+                      placeholder="如：博客; 技术笔记; 数字花园; 运维自动化"
                     />
                     <div className="admin-form-hint">有助于提升爬虫收录权重，多个关键词请使用分号 (;) 或逗号分隔</div>
                   </div>
@@ -568,7 +640,7 @@ export const AdminSettings: React.FC = () => {
                       rows={5}
                       style={{ resize: 'vertical', lineHeight: 1.6 }}
                     />
-                    <div className="admin-form-hint">直接呈现于搜索引擎检索卡片正文及社交分享链接卡片中</div>
+                    <div className="admin-form-hint">呈现于搜索引擎检索卡片，同时作为“关于作者与站点”页面中“关于博客”的介绍说明</div>
                   </div>
                 </div>
               )}
@@ -595,10 +667,48 @@ export const AdminSettings: React.FC = () => {
                       onChange={e => handleChange('about_content', e.target.value)}
                       className="admin-form-control"
                       placeholder="支持多行文本，记录个人技术成长路径、开源项目与个人寄语..."
-                      rows={9}
-                      style={{ minHeight: '180px', resize: 'vertical', lineHeight: 1.7 }}
+                      rows={7}
+                      style={{ minHeight: '140px', resize: 'vertical', lineHeight: 1.7 }}
                     />
                     <div className="admin-form-hint">前台渲染时严格保留换行排版与段落间隔</div>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">技术栈与技能标签 (可选)</label>
+                    <input
+                      type="text"
+                      value={config.about_tech_stack || ''}
+                      onChange={e => handleChange('about_tech_stack', e.target.value)}
+                      className="admin-form-control"
+                      placeholder="如：Python; Linux; Docker; Splunk; 网络安全"
+                    />
+                    <div className="admin-form-hint">展示在“个人自述”正文下方的药丸标签，多个标签使用分号 (;) 或逗号分隔</div>
+                  </div>
+
+                  <div className="admin-form-row">
+                    <div className="admin-form-group">
+                      <label className="admin-form-label">个人 GitHub 主页 (可选)</label>
+                      <input
+                        type="url"
+                        value={config.author_github || ''}
+                        onChange={e => handleChange('author_github', e.target.value)}
+                        className="admin-form-control"
+                        placeholder="https://github.com/your-username"
+                      />
+                      <div className="admin-form-hint">展示在“关于”页个人名片下方的 GitHub 按钮跳转链接，留空则不显示</div>
+                    </div>
+
+                    <div className="admin-form-group">
+                      <label className="admin-form-label">联系电子邮箱 (可选)</label>
+                      <input
+                        type="email"
+                        value={config.author_email || ''}
+                        onChange={e => handleChange('author_email', e.target.value)}
+                        className="admin-form-control"
+                        placeholder="your-email@example.com"
+                      />
+                      <div className="admin-form-hint">展示在“关于”页个人名片下方的 Email 按钮唤起地址，留空则不显示</div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -607,7 +717,7 @@ export const AdminSettings: React.FC = () => {
               {activeTab === 'ai' && (
                 <div className="settings-form-stack">
                   <div className="admin-form-group">
-                    <label className="admin-form-label">API 接口基础地址 (Base URL) *</label>
+                    <label className="admin-form-label">API Base URL *</label>
                     <input
                       type="text"
                       value={config.llm_base_url || ''}
@@ -619,7 +729,7 @@ export const AdminSettings: React.FC = () => {
                   </div>
 
                   <div className="admin-form-group">
-                    <label className="admin-form-label">API Key 凭证 *</label>
+                    <label className="admin-form-label">API Key *</label>
                     <input
                       type="password"
                       value={config.llm_api_key || ''}
@@ -632,7 +742,7 @@ export const AdminSettings: React.FC = () => {
                   </div>
 
                   <div className="admin-form-group">
-                    <label className="admin-form-label">模型标识符 (Model ID) *</label>
+                    <label className="admin-form-label">Model ID *</label>
                     <input
                       type="text"
                       value={config.llm_model || ''}
@@ -716,23 +826,77 @@ export const AdminSettings: React.FC = () => {
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleScheduler(!schedulerStatus?.enabled)}
-                          disabled={togglingScheduler}
-                          className={`admin-btn admin-btn-sm ${schedulerStatus?.enabled ? 'admin-btn-secondary' : 'admin-btn-primary'}`}
+                      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {/* 长条胶囊滑动开关组件 */}
+                        <div
+                          className="giscus-switch-pill"
+                          role="group"
+                          aria-label="自动调度开关"
+                          style={{ width: '200px' }}
                         >
-                          {togglingScheduler ? '切换中...' : (schedulerStatus?.enabled ? '暂停/禁用任务' : '开启自动调度')}
-                        </button>
+                          <div
+                            className={`giscus-switch-slider ${
+                              schedulerStatus?.enabled ? 'active-on' : 'active-off'
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            disabled={togglingScheduler}
+                            className={`giscus-switch-item ${
+                              schedulerStatus?.enabled ? 'is-selected' : ''
+                            }`}
+                            onClick={() => {
+                              if (!schedulerStatus?.enabled && !togglingScheduler) {
+                                handleToggleScheduler(true);
+                              }
+                            }}
+                          >
+                            <span className="giscus-switch-dot" />
+                            {togglingScheduler && !schedulerStatus?.enabled ? '开启中...' : '已开启'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={togglingScheduler}
+                            className={`giscus-switch-item ${
+                              !schedulerStatus?.enabled ? 'is-selected' : ''
+                            }`}
+                            onClick={() => {
+                              if (schedulerStatus?.enabled && !togglingScheduler) {
+                                handleToggleScheduler(false);
+                              }
+                            }}
+                          >
+                            <span className="giscus-switch-dot" />
+                            {togglingScheduler && schedulerStatus?.enabled ? '停止中...' : '已禁用'}
+                          </button>
+                        </div>
+
                         <button
                           type="button"
                           onClick={handleTriggerScheduler}
                           disabled={triggeringScheduler}
-                          className="admin-btn admin-btn-secondary admin-btn-sm"
+                          className="scheduler-trigger-btn"
                           title="立即触发一次文章扫描与补齐处理"
                         >
-                          {triggeringScheduler ? '处理中...' : '立即执行一次'}
+                          <span className={`scheduler-trigger-icon ${triggeringScheduler ? 'is-spinning' : ''}`}>
+                            {triggeringScheduler ? (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="12" y1="2" x2="12" y2="6" />
+                                <line x1="12" y1="18" x2="12" y2="22" />
+                                <line x1="4.93" y1="4.93" x2="7.76" y2="7.76" />
+                                <line x1="16.24" y1="16.24" x2="19.07" y2="19.07" />
+                                <line x1="2" y1="12" x2="6" y2="12" />
+                                <line x1="18" y1="12" x2="22" y2="12" />
+                                <line x1="4.93" y1="19.07" x2="7.76" y2="16.24" />
+                                <line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
+                              </svg>
+                            ) : (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                              </svg>
+                            )}
+                          </span>
+                          <span>{triggeringScheduler ? '扫描分析中...' : '立即执行一次'}</span>
                         </button>
                       </div>
                     </div>
@@ -1212,81 +1376,47 @@ export const AdminSettings: React.FC = () => {
                 <div className="settings-form-stack">
                   <div className="admin-form-group">
                     <label className="admin-form-label">Giscus 评论功能总开关</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.25rem' }}>
-                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem' }}>
-                        <input
-                          type="radio"
-                          name="giscus_enabled"
-                          checked={config.giscus_enabled === 'true' || config.giscus_enabled === '1'}
-                          onChange={() => handleChange('giscus_enabled', 'true')}
+                    <div style={{ marginTop: '0.35rem' }}>
+                      <div
+                        className="giscus-switch-pill"
+                        role="group"
+                        aria-label="Giscus 评论开关"
+                      >
+                        <div
+                          className={`giscus-switch-slider ${
+                            config.giscus_enabled === 'true' || config.giscus_enabled === '1'
+                              ? 'active-on'
+                              : 'active-off'
+                          }`}
                         />
-                        <span>开启评论区</span>
-                      </label>
-                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem' }}>
-                        <input
-                          type="radio"
-                          name="giscus_enabled"
-                          checked={config.giscus_enabled !== 'true' && config.giscus_enabled !== '1'}
-                          onChange={() => handleChange('giscus_enabled', 'false')}
-                        />
-                        <span>关闭评论区</span>
-                      </label>
+                        <button
+                          type="button"
+                          className={`giscus-switch-item ${
+                            config.giscus_enabled === 'true' || config.giscus_enabled === '1'
+                              ? 'is-selected'
+                              : ''
+                          }`}
+                          onClick={() => handleChange('giscus_enabled', 'true')}
+                        >
+                          <span className="giscus-switch-dot" />
+                          开启评论
+                        </button>
+                        <button
+                          type="button"
+                          className={`giscus-switch-item ${
+                            config.giscus_enabled !== 'true' && config.giscus_enabled !== '1'
+                              ? 'is-selected'
+                              : ''
+                          }`}
+                          onClick={() => handleChange('giscus_enabled', 'false')}
+                        >
+                          <span className="giscus-switch-dot" />
+                          关闭评论
+                        </button>
+                      </div>
                     </div>
                     <div className="admin-form-hint">
-                      开启后将在文章详情页底部加载 Giscus 评论区；若尚未配置仓库信息，前台会展示提示。
-                    </div>
-                  </div>
-
-                  <div style={{
-                    padding: '1.25rem',
-                    background: 'var(--admin-input-bg)',
-                    border: '1px solid var(--admin-border)',
-                    borderRadius: 10,
-                    marginBottom: '1rem',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                      <span style={{ fontSize: '1.2rem' }}>📖</span>
-                      <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--admin-text-1)' }}>
-                        Giscus 快速配置与接入指南
-                      </h4>
-                    </div>
-
-                    <div style={{ fontSize: '0.84rem', color: 'var(--admin-text-2)', lineHeight: 1.65, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                      <div>
-                        <strong>步骤 1：准备公开 GitHub 仓库并开启 Discussions</strong>
-                        <div style={{ color: 'var(--admin-text-3)', marginTop: '0.15rem' }}>
-                          确保目标仓库权限为 <code>Public</code>（私有仓库无法公开加载评论）。进入仓库 <em>Settings → General → Features</em> 区域，勾选开启 <strong>Discussions</strong>。
-                        </div>
-                      </div>
-
-                      <div>
-                        <strong>步骤 2：安装 Giscus GitHub App</strong>
-                        <div style={{ color: 'var(--admin-text-3)', marginTop: '0.15rem' }}>
-                          访问 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--admin-primary)', textDecoration: 'underline' }}>GitHub Giscus App</a>，点击 <em>Install</em> 并选择授权刚刚开启 Discussions 的目标仓库。
-                        </div>
-                      </div>
-
-                      <div>
-                        <strong>步骤 3：在 giscus.app 自动生成参数</strong>
-                        <div style={{ color: 'var(--admin-text-3)', marginTop: '0.15rem' }}>
-                          打开官方配置生成器 <a href="https://giscus.app/zh-CN" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--admin-primary)', textDecoration: 'underline' }}>https://giscus.app/zh-CN</a>：
-                          <ul style={{ margin: '0.35rem 0 0 1.25rem', padding: 0 }}>
-                            <li>在“仓库”输入框输入 <code>所有者/仓库名</code>（如 <code>Hesccc/AeroNote</code>），页面会自动解析出 <strong>data-repo-id</strong>。</li>
-                            <li>在“Discussion 分类”中选择分类（推荐 <code>Announcements</code>），页面会自动解析出 <strong>data-category-id</strong>。</li>
-                          </ul>
-                        </div>
-                      </div>
-
-                      <div>
-                        <strong>步骤 4：填入下方表单并保存</strong>
-                        <div style={{ color: 'var(--admin-text-3)', marginTop: '0.15rem' }}>
-                          将获取到的 <strong>仓库 ID</strong> 与 <strong>分类 ID</strong> 复制并填入下方对应输入框中，勾选“开启评论区”并点击页面底部「保存当前设置」即可生效！
-                        </div>
-                      </div>
-
-                      <div style={{ marginTop: '0.3rem', padding: '0.5rem 0.75rem', background: 'var(--admin-bg)', borderRadius: 6, border: '1px solid var(--admin-border)', fontSize: '0.78rem', color: 'var(--admin-text-3)' }}>
-                        💡 <strong>小贴士</strong>：AeroNote 前端已深度内置暗色模式无缝自适应（<code>transparent_dark</code> 与 <code>light</code> 动态切换），您无需在此调整主题代码。
-                      </div>
+                      开启后在文章详情页底部加载评论；关闭后整站不渲染评论组件。
                     </div>
                   </div>
 
@@ -1297,9 +1427,9 @@ export const AdminSettings: React.FC = () => {
                       value={config.giscus_repo || ''}
                       onChange={e => handleChange('giscus_repo', e.target.value)}
                       className="admin-form-control"
-                      placeholder="格式：所有者/仓库名，如 Hesccc/AeroNote"
+                      placeholder="格式：所有者/仓库名，例如 your-github/your-repo"
                     />
-                    <div className="admin-form-hint">必须是公开仓库，如 Hesccc/AeroNote</div>
+                    <div className="admin-form-hint">必须是公开仓库（Public），私有仓库无法公开加载评论</div>
                   </div>
 
                   <div className="admin-form-group">
@@ -1309,9 +1439,9 @@ export const AdminSettings: React.FC = () => {
                       value={config.giscus_repo_id || ''}
                       onChange={e => handleChange('giscus_repo_id', e.target.value)}
                       className="admin-form-control"
-                      placeholder="如：R_kgDO..."
+                      placeholder="例如：R_kgDO..."
                     />
-                    <div className="admin-form-hint">在 giscus.app 填入仓库名后自动生成的 data-repo-id</div>
+                    <div className="admin-form-hint">在 giscus.app 填入仓库名称后自动解析出的 data-repo-id</div>
                   </div>
 
                   <div className="admin-form-group">
@@ -1321,9 +1451,9 @@ export const AdminSettings: React.FC = () => {
                       value={config.giscus_category || ''}
                       onChange={e => handleChange('giscus_category', e.target.value)}
                       className="admin-form-control"
-                      placeholder="如：Announcements 或 General"
+                      placeholder="例如：Announcements 或 General"
                     />
-                    <div className="admin-form-hint">推荐使用 Announcements 分类（只有管理员可发主帖，读者可自由回复）</div>
+                    <div className="admin-form-hint">建议选 Announcements 分类（仅管理员可发主帖，读者可直接回复参与讨论）</div>
                   </div>
 
                   <div className="admin-form-group">
@@ -1333,9 +1463,9 @@ export const AdminSettings: React.FC = () => {
                       value={config.giscus_category_id || ''}
                       onChange={e => handleChange('giscus_category_id', e.target.value)}
                       className="admin-form-control"
-                      placeholder="如：DIC_kwDO..."
+                      placeholder="例如：DIC_kwDO..."
                     />
-                    <div className="admin-form-hint">在 giscus.app 选择分类后自动生成的 data-category-id</div>
+                    <div className="admin-form-hint">在 giscus.app 选定分类后生成的 data-category-id</div>
                   </div>
 
                   <div className="admin-form-row">
@@ -1364,11 +1494,76 @@ export const AdminSettings: React.FC = () => {
                       </select>
                     </div>
                   </div>
+
+                  {/* 保存配置按钮（排在配置项下方、操作指引卡片上方） */}
+                  <div className="settings-pane-footer" style={{ marginTop: '0.5rem', marginBottom: '1rem', borderTop: 'none', padding: 0 }}>
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="admin-btn admin-btn-primary"
+                      style={{ minWidth: '150px' }}
+                    >
+                      {saving ? '正在保存更改...' : '保存当前设置'}
+                    </button>
+                  </div>
+
+                  {/* 详细配置与接入指引（排在保存配置按钮下方） */}
+                  <div style={{
+                    padding: '1.25rem',
+                    background: 'var(--admin-input-bg)',
+                    border: '1px solid var(--admin-border)',
+                    borderRadius: 10,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
+                      <span style={{ fontSize: '1.15rem' }}>📖</span>
+                      <h4 style={{ margin: 0, fontSize: '0.96rem', fontWeight: 700, color: 'var(--admin-text-1)' }}>
+                        Giscus 详细配置与接入步骤
+                      </h4>
+                    </div>
+
+                    <div style={{ fontSize: '0.84rem', color: 'var(--admin-text-2)', lineHeight: 1.7, display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                      <div>
+                        <strong style={{ color: 'var(--admin-text-1)' }}>1. 准备公开仓库并打开 Discussions</strong>
+                        <div style={{ color: 'var(--admin-text-3)', marginTop: '0.2rem' }}>
+                          进入你要用来存评论的 GitHub 仓库（必须是公开仓库 Public）。点击仓库顶部的 <strong>Settings</strong>，在 <strong>General → Features</strong> 区域找到 <strong>Discussions</strong>，把它勾选开启。
+                        </div>
+                      </div>
+
+                      <div>
+                        <strong style={{ color: 'var(--admin-text-1)' }}>2. 给仓库安装 Giscus 授权应用</strong>
+                        <div style={{ color: 'var(--admin-text-3)', marginTop: '0.2rem' }}>
+                          打开 <a href="https://github.com/apps/giscus" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--admin-primary)', textDecoration: 'underline' }}>github.com/apps/giscus</a>，点击绿色 <strong>Install</strong> 按钮，在授权页面勾选刚才那个仓库并确认安装。
+                        </div>
+                      </div>
+
+                      <div>
+                        <strong style={{ color: 'var(--admin-text-1)' }}>3. 打开 Giscus 官网生成两个核心 ID</strong>
+                        <div style={{ color: 'var(--admin-text-3)', marginTop: '0.2rem' }}>
+                          浏览器访问 <a href="https://giscus.app/zh-CN" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--admin-primary)', textDecoration: 'underline' }}>giscus.app/zh-CN</a>：
+                          <div style={{ marginTop: '0.35rem', paddingLeft: '0.5rem' }}>
+                            • 在「仓库」框输入 <code>用户名/仓库名</code>（如 <code>your-username/your-repo</code>），页面绿字通过后会在下方代码块里算出 <strong>data-repo-id</strong>（以 <code>R_</code> 开头）。<br />
+                            • 在「Discussion 分类」下拉框选 <code>Announcements</code>，下面代码块里会随之生成 <strong>data-category-id</strong>（以 <code>DIC_</code> 开头）。
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <strong style={{ color: 'var(--admin-text-1)' }}>4. 复制参数回填到上方表单并保存</strong>
+                        <div style={{ color: 'var(--admin-text-3)', marginTop: '0.2rem' }}>
+                          把上面拿到的仓库名、<code>R_</code> 开头的仓库 ID、分类名以及 <code>DIC_</code> 开头的分类 ID 分别填入上方表单，将总开关切到「开启评论」，最后点击上方的「保存当前设置」即可生效。
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '0.6rem 0.85rem', background: 'var(--admin-bg)', borderRadius: 6, border: '1px solid var(--admin-border)', fontSize: '0.78rem', color: 'var(--admin-text-3)' }}>
+                        💡 <strong>主题说明</strong>：AeroNote 前台已经内置了明暗主题动态跟随，文章详情页会随用户的日间/夜间模式自动切换评论区配色，不需要手动改动代码。
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {/* Action Save Bar (仅常规表单 Tab 展现) */}
-              {!['ai-scheduler', 'ai-prompts', 'open-api'].includes(activeTab) && (
+              {/* Action Save Bar (仅常规表单 Tab 展现，comment tab 已在其指引上方呈现保存按钮) */}
+              {!['ai-scheduler', 'ai-prompts', 'open-api', 'comment'].includes(activeTab) && (
                 <div className="settings-pane-footer">
                   <button
                     type="submit"

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 import secrets
 from apps.exts import db
 from apps.models.model import Config, Posts, Categories, Tags
@@ -7,6 +7,33 @@ from apps.api.open import get_or_create_open_token, CONFIG_KEY_OPEN_TOKEN
 from .middleware import token_required
 
 api_config = Blueprint('api_config', __name__)
+
+@api_config.route('/robots.txt', methods=['GET'])
+def get_robots_txt():
+    """动态生成 robots.txt，根据后台 SEO 收录总开关控制搜索引擎爬虫行为。"""
+    seo_enabled = Config.query.filter_by(name='seo_enabled').first()
+    # 默认开启 (值为 'true' 或 '1' 或未设置时视为允许收录)
+    is_allowed = (seo_enabled is None) or (seo_enabled.value in ('true', '1'))
+    
+    if is_allowed:
+        website_url = Config.query.filter_by(name='website_url').first()
+        base_url = website_url.value.rstrip('/') if website_url and website_url.value else ''
+        content = (
+            "User-agent: *\n"
+            "Allow: /\n"
+            "Disallow: /admin/\n"
+            "Disallow: /api/\n"
+            "Disallow: /apis/\n"
+        )
+        if base_url:
+            content += f"\nSitemap: {base_url}/sitemap.xml\n"
+    else:
+        # 完全禁止所有搜索引擎抓取本站任何页面
+        content = (
+            "User-agent: *\n"
+            "Disallow: /\n"
+        )
+    return Response(content, mimetype='text/plain')
 
 @api_config.route('/api/config', methods=['GET'])
 def get_config():

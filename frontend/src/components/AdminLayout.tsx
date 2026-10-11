@@ -96,6 +96,18 @@ const menuItems: MenuSection[] = [
         ),
       },
       {
+        to: '/admin/ai-settings',
+        label: 'AI 设置',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+            <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93L13 14h-2l.25-4.07A4.002 4.002 0 0 1 12 2z" />
+            <circle cx="12" cy="18" r="2" />
+            <path d="M6 10H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+            <path d="M18 10h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2" />
+          </svg>
+        ),
+      },
+      {
         to: '/admin/backups',
         label: '备份中心',
         icon: (
@@ -190,6 +202,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     else if (path === '/admin/tags') pageTitle = '标签管理';
     else if (path === '/admin/oss-images') pageTitle = '图片库管理';
     else if (path === '/admin/settings') pageTitle = '系统设置';
+    else if (path === '/admin/ai-settings') pageTitle = 'AI 设置';
     else if (path === '/admin/password') pageTitle = '修改密码';
     document.title = `${pageTitle} - 后台管理`;
   }, [location.pathname]);

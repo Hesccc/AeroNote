@@ -27,17 +27,17 @@ export const Home: React.FC = () => {
   const [siteTitle, setSiteTitle] = useState(() => {
     try {
       const cached = localStorage.getItem('blog_config');
-      if (cached) return JSON.parse(cached).website_title || 'AeroNote';
+      if (cached) return JSON.parse(cached).website_title || '';
     } catch {}
-    return 'AeroNote';
+    return '';
   });
 
   const [siteSubtitle, setSiteSubtitle] = useState(() => {
     try {
       const cached = localStorage.getItem('blog_config');
-      if (cached) return JSON.parse(cached).homepage_subtitle || '记录技术沉淀 · 分享生活思考 · 散漫而行';
+      if (cached) return JSON.parse(cached).homepage_subtitle || '';
     } catch {}
-    return '记录技术沉淀 · 分享生活思考 · 散漫而行';
+    return '';
   });
 
   const [homepageBg, setHomepageBg] = useState(() => {
