@@ -27,6 +27,7 @@ _DEFAULT_THREADS = 3           # 默认并发 3 线程
 # ── 工业级防积压锁与在途保护 ──
 _IS_BATCH_RUNNING = False
 _IN_FLIGHT_POST_IDS = set()
+_TAXONOMY_CREATION_LOCK = threading.Lock()  # 保护多线程并发创建分类与标签，杜绝 Race Condition 重复创建
 
 
 def add_scheduler_log(level: str, message: str):
@@ -198,51 +199,61 @@ def _process_single_post_in_thread(app, post_id: int):
                     rec_category = (res.get('category') or '').strip()
                     rec_tags = [t.strip() for t in res.get('tags', []) if t.strip()]
 
-                    # 补充分类
+                    # 补充分类（加线程锁保护，防止多线程并发检查-创建导致的重复分类）
                     if existing_cat_count == 0 and rec_category:
-                        cat = Categories.query.filter(Categories.name == rec_category, Categories.deleted == 0).first()
-                        if not cat:
-                            import re
-                            slug = re.sub(r'[^a-zA-Z0-9]', '', rec_category).lower() or f"cat-{int(now.timestamp())}"
-                            cat = Categories(
-                                name=rec_category,
-                                slug=slug,
-                                description=f"AI自动提取: {rec_category}",
-                                color="#4f46e5",
-                                parent_id=0,
-                                deleted=0,
-                                create_time=now,
-                                update_time=now
-                            )
-                            db.session.add(cat)
-                            db.session.flush()
-                        pc = PostCategories(post_id=post.id, category_id=cat.id, deleted=0, create_time=now, update_time=now)
-                        db.session.add(pc)
-                        actions.append(f"绑定分类「{cat.name}」")
-
-                    # 补充标签
-                    if existing_tag_count == 0 and rec_tags:
-                        added_tags = []
-                        for tag_name in rec_tags:
-                            tag = Tags.query.filter(Tags.name == tag_name, Tags.deleted == 0).first()
-                            if not tag:
+                        with _TAXONOMY_CREATION_LOCK:
+                            cat = Categories.query.filter(Categories.name == rec_category, Categories.deleted == 0).first()
+                            if not cat:
                                 import re
-                                slug = re.sub(r'[^a-zA-Z0-9]', '', tag_name).lower() or f"tag-{int(now.timestamp())}"
-                                tag = Tags(
-                                    name=tag_name,
+                                slug = re.sub(r'[^a-zA-Z0-9]', '', rec_category).lower() or f"cat-{int(now.timestamp())}"
+                                cat = Categories(
+                                    name=rec_category,
                                     slug=slug,
-                                    color="#06b6d4",
+                                    description=f"AI自动提取: {rec_category}",
+                                    color="#4f46e5",
+                                    parent_id=0,
                                     deleted=0,
                                     create_time=now,
                                     update_time=now
                                 )
-                                db.session.add(tag)
+                                db.session.add(cat)
                                 db.session.flush()
-                            exists_rel = PostTags.query.filter(PostTags.post_id == post.id, PostTags.tag_id == tag.id, PostTags.deleted == 0).first()
-                            if not exists_rel:
-                                pt = PostTags(post_id=post.id, tag_id=tag.id, deleted=0, create_time=now, update_time=now)
-                                db.session.add(pt)
-                                added_tags.append(tag.name)
+
+                            # 幂等绑定：确保不重复绑定
+                            exists_pc = PostCategories.query.filter(
+                                PostCategories.post_id == post.id,
+                                PostCategories.category_id == cat.id,
+                                PostCategories.deleted == 0
+                            ).first()
+                            if not exists_pc:
+                                pc = PostCategories(post_id=post.id, category_id=cat.id, deleted=0, create_time=now, update_time=now)
+                                db.session.add(pc)
+                                actions.append(f"绑定分类「{cat.name}」")
+
+                    # 补充标签（加线程锁保护，防止多线程并发检查-创建导致的重复标签）
+                    if existing_tag_count == 0 and rec_tags:
+                        added_tags = []
+                        with _TAXONOMY_CREATION_LOCK:
+                            for tag_name in rec_tags:
+                                tag = Tags.query.filter(Tags.name == tag_name, Tags.deleted == 0).first()
+                                if not tag:
+                                    import re
+                                    slug = re.sub(r'[^a-zA-Z0-9]', '', tag_name).lower() or f"tag-{int(now.timestamp())}"
+                                    tag = Tags(
+                                        name=tag_name,
+                                        slug=slug,
+                                        color="#06b6d4",
+                                        deleted=0,
+                                        create_time=now,
+                                        update_time=now
+                                    )
+                                    db.session.add(tag)
+                                    db.session.flush()
+                                exists_rel = PostTags.query.filter(PostTags.post_id == post.id, PostTags.tag_id == tag.id, PostTags.deleted == 0).first()
+                                if not exists_rel:
+                                    pt = PostTags(post_id=post.id, tag_id=tag.id, deleted=0, create_time=now, update_time=now)
+                                    db.session.add(pt)
+                                    added_tags.append(tag.name)
                         if added_tags:
                             actions.append(f"绑定标签「{', '.join(added_tags)}」")
 
