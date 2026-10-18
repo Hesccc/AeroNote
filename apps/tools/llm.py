@@ -1,4 +1,5 @@
 import json
+import re
 import time
 from openai import OpenAI
 from apps import config
@@ -57,3 +58,57 @@ def llm_chat_completion(system_prompt: str, user_prompt: str, temperature: float
         duration_s = time.time() - start_time
         llm_logger.error(f"大模型调用失败 [Model: {model}] 耗时: {duration_s:.2f}s, 错误: {e}")
         raise e
+
+
+def parse_llm_json(text: str) -> dict:
+    """
+    鲁棒解析大模型返回的 JSON 内容：
+    1. 自动兼容并剥离 Markdown 代码块（```json ... ``` 或 ``` ... ```）；
+    2. 自动截取提取最外层有效大括号 {...}；
+    3. 自动容错尾随多余逗号 (trailing comma)；
+    4. 自动解包外层被意外包裹的列表单元素 [ {...} ]。
+    """
+    if not text or not text.strip():
+        raise ValueError("大模型响应内容为空，未生成有效数据")
+
+    raw = text.strip()
+
+    def _ensure_dict(obj):
+        if isinstance(obj, dict):
+            return obj
+        if isinstance(obj, list) and len(obj) > 0 and isinstance(obj[0], dict):
+            return obj[0]
+        raise ValueError(f"大模型返回的数据结构不是有效 JSON 对象 (得到: {type(obj).__name__})")
+
+    # 1. 直接尝试标准反序列化
+    try:
+        return _ensure_dict(json.loads(raw))
+    except Exception:
+        pass
+
+    cleaned = raw
+
+    # 2. 剥离 Markdown 格式代码块 (```json ... ``` 或 ``` ... ```)
+    fence_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", cleaned, re.IGNORECASE)
+    if fence_match:
+        cleaned = fence_match.group(1).strip()
+        try:
+            return _ensure_dict(json.loads(cleaned))
+        except Exception:
+            pass
+
+    # 3. 贪婪提取最外层的 { ... } 或 [ ... ]
+    brace_match = re.search(r"(\{[\s\S]*\}|\[[\s\S]*\])", cleaned)
+    if brace_match:
+        cleaned = brace_match.group(1).strip()
+        try:
+            return _ensure_dict(json.loads(cleaned))
+        except Exception:
+            pass
+
+    # 4. 容错处理结尾多余逗号 (Trailing comma)
+    cleaned_no_trailing = re.sub(r",\s*([}\]])", r"\1", cleaned)
+    try:
+        return _ensure_dict(json.loads(cleaned_no_trailing))
+    except Exception as e:
+        raise ValueError(f"大模型返回内容无法解析为有效 JSON (原始响应前200字: {raw[:200]!r}): {e}")

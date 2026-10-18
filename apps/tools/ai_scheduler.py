@@ -8,7 +8,7 @@ from datetime import datetime
 from croniter import croniter
 from apps.exts import db
 from apps.models.model import Posts, Categories, Tags, PostCategories, PostTags, Config
-from apps.tools.llm import llm_chat_completion
+from apps.tools.llm import llm_chat_completion, parse_llm_json
 from apps.tools.logger import scheduler_logger
 
 logger = scheduler_logger
@@ -193,7 +193,7 @@ def _process_single_post_in_thread(app, post_id: int):
                                        .replace('{tag_list}', json.dumps(tag_names, ensure_ascii=False))
                     user_prompt = f"文章标题：{title}\n\n正文节选：\n{content[:4000]}"
                     reply = llm_chat_completion(system_prompt, user_prompt, temperature=0.3, json_mode=True)
-                    res = json.loads(reply)
+                    res = parse_llm_json(reply)
 
                     rec_category = (res.get('category') or '').strip()
                     rec_tags = [t.strip() for t in res.get('tags', []) if t.strip()]

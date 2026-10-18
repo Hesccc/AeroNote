@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 from apps.exts import db
 from apps.models.model import Categories, Tags
-from apps.tools.llm import llm_chat_completion
+from apps.tools.llm import llm_chat_completion, parse_llm_json
 from apps.tools.ai_prompts import get_prompt_template, get_all_prompts_info, save_prompt_template
 from .middleware import token_required
 
@@ -220,7 +220,7 @@ def ai_analyze_taxonomy():
 
     try:
         reply = llm_chat_completion(system_prompt, user_prompt, temperature=0.3, json_mode=True)
-        result = json.loads(reply)
+        result = parse_llm_json(reply)
         rec_category_name = (result.get('category') or '').strip()
         rec_tag_names = [t.strip() for t in result.get('tags', []) if t.strip()]
     except Exception as e:
@@ -347,7 +347,7 @@ def ai_proofread():
 
     try:
         reply = llm_chat_completion(system_prompt, user_prompt, temperature=0.2, json_mode=True)
-        res = json.loads(reply)
+        res = parse_llm_json(reply)
         return jsonify({
             'revised_content': res.get('revised_content') or content,
             'suggestions': res.get('suggestions') or []
