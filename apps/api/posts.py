@@ -270,8 +270,8 @@ def manage_get_posts():
     sort_by = request.args.get('sort_by', 'create_time')   # field name
     sort_order = request.args.get('sort_order', 'desc')     # asc | desc
 
-    # Clamp per_page to sane values
-    per_page = max(5, min(per_page, 100))
+    # Clamp per_page to sane values (支持 20, 50, 100, 200)
+    per_page = max(5, min(per_page, 200))
 
     # Allowed sort columns (map frontend key -> model attr)
     SORT_MAP = {

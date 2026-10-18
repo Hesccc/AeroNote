@@ -249,7 +249,7 @@ export const AdminPosts: React.FC = () => {
   const search = searchParams.get('search') || '';
   const statusFilter = searchParams.get('status'); // '0' | '3' | null (all)
   const categoryFilter = searchParams.get('category_id') || '';
-  const perPage = parseInt(searchParams.get('per_page') || '15', 10);
+  const perPage = parseInt(searchParams.get('per_page') || '20', 10);
   const sortBy = (searchParams.get('sort_by') || 'create_time') as SortField;
   const sortOrder = (searchParams.get('sort_order') || 'desc') as SortOrder;
 
@@ -648,9 +648,33 @@ export const AdminPosts: React.FC = () => {
         {/* Footer Pagination Bar */}
         {!loading && total > 0 && (
           <div className="posts-table-footer">
-            <div className="footer-summary">
-              共 <strong>{total}</strong> 篇文章 · 每页 {perPage} 篇
-              {selectedIds.size > 0 && <span> · 当前已选 <strong>{selectedIds.size}</strong> 篇</span>}
+            <div className="footer-summary" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+              <span>共 <strong>{total}</strong> 篇文章</span>
+              <span>·</span>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span>每页显示:</span>
+                <select
+                  value={perPage}
+                  onChange={e => setParam({ per_page: e.target.value, page: '1' })}
+                  style={{
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '6px',
+                    border: '1px solid var(--admin-card-border)',
+                    backgroundColor: 'var(--admin-card-bg)',
+                    color: 'var(--admin-text-1)',
+                    fontSize: '0.8rem',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 500
+                  }}
+                >
+                  <option value={20}>20 篇</option>
+                  <option value={50}>50 篇</option>
+                  <option value={100}>100 篇</option>
+                  <option value={200}>200 篇</option>
+                </select>
+              </div>
+              {selectedIds.size > 0 && <span>· 当前已选 <strong>{selectedIds.size}</strong> 篇</span>}
             </div>
 
             {pages > 1 && (
