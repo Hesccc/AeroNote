@@ -45,7 +45,7 @@ def _is_sensitive_config_key(key: str) -> bool:
     if k in ('website_keywords',):
         return False
     # 精确匹配高危键
-    if k in ('open_api_token', 'ai_api_key', 'llm_api_key', 'llm_base_url', 'webhook_secret'):
+    if k in ('open_api_token', 'ai_api_key', 'llm_api_key', 'llm_base_url', 'webhook_secret', 'oidc_client_secret'):
         return True
     # 模式匹配：拦截包含 token, secret, password, key, llm 等敏感词
     if any(sub in k for sub in ('_token', '_secret', 'password', 'api_key', 'llm_')):
@@ -182,3 +182,38 @@ def get_stats():
         # AI 任务运行监控维度
         'ai_scheduler': scheduler_info,
     })
+
+
+@api_config.route('/api/manage/oidc/test-connection', methods=['POST'])
+@token_required
+def test_oidc_connection():
+    """
+    测试 OIDC 身份认证服务发现与网络连通性。
+    支持前端在未保存前传入草稿参数进行实时探测，也支持自动读取已保存的配置探测。
+    """
+    data = request.get_json() or {}
+    issuer_url = (data.get('issuer_url') or '').strip()
+    client_id = (data.get('client_id') or '').strip()
+    client_secret = (data.get('client_secret') or '').strip()
+
+    from apps.tools.oidc import get_oidc_configs, test_oidc_connectivity
+
+    if not issuer_url:
+        # 降级使用数据库已保存的配置
+        db_cfg = get_oidc_configs()
+        issuer_url = db_cfg.get('issuer_url')
+        if not client_id:
+            client_id = db_cfg.get('client_id')
+        if not client_secret:
+            client_secret = db_cfg.get('client_secret')
+
+    if not issuer_url:
+        return jsonify({
+            'success': False,
+            'msg': '测试失败：尚未填写 OIDC Issuer URL 服务发现地址！'
+        }), 400
+
+    report = test_oidc_connectivity(issuer_url=issuer_url, client_id=client_id, client_secret=client_secret)
+    status_code = 200 if report.get('success') else 400
+    return jsonify(report), status_code
+

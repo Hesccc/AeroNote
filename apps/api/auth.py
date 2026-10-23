@@ -1,7 +1,8 @@
 import datetime
 import time
 import jwt
-from flask import Blueprint, request, jsonify, current_app, g
+from flask import Blueprint, request, jsonify, current_app, g, redirect
+import urllib.parse
 from apps.exts import db
 from apps.models.model import User
 from apps.tools.tools import verify_and_upgrade_password, generate_password
@@ -136,4 +137,177 @@ def change_password():
     db.session.commit()
 
     return jsonify({'msg': '密码修改成功，请使用新密码重新登录'})
+
+
+# ──────────────────────────────────────────────
+# OIDC 单点登录接口 (State / Nonce 防护 + 用户名映射绑定)
+# ──────────────────────────────────────────────
+
+@api_auth.route('/api/auth/oidc/status', methods=['GET'])
+def oidc_status():
+    """获取 OIDC 登录开关状态及按钮显示文案。"""
+    from apps.tools.oidc import get_oidc_configs
+    cfg = get_oidc_configs()
+    return jsonify({
+        'enabled': cfg.get('enabled', False),
+        'button_text': '使用 OIDC 单点登录',
+    })
+
+
+@api_auth.route('/api/auth/oidc/auth-url', methods=['POST'])
+def oidc_auth_url():
+    """
+    生成携带 State 与 Nonce 安全防护签名的 OIDC 认证跳转 URL。
+    State: 防止跨站请求伪造 (CSRF) 攻击，具备 10 分钟有效时限与一次性防重放消费。
+    Nonce: 注入授权请求，随后在 ID Token 回调时严格比对，防御令牌伪造与重放。
+    """
+    from apps.tools.oidc import get_oidc_configs, fetch_oidc_discovery, generate_state_and_nonce
+
+    cfg = get_oidc_configs()
+    if not cfg.get('enabled'):
+        return jsonify({'msg': 'OIDC 单点登录尚未在后台启用！'}), 400
+
+    issuer_url = cfg.get('issuer_url')
+    client_id = cfg.get('client_id')
+    if not issuer_url or not client_id:
+        return jsonify({'msg': 'OIDC 服务配置不完整：请先在后台填写 Issuer URL 与 Client ID！'}), 400
+
+    data = request.get_json() or {}
+    redirect_uri = (data.get('redirect_uri') or cfg.get('redirect_uri') or '').strip()
+    if not redirect_uri:
+        redirect_uri = f"{request.host_url.rstrip('/')}/login/callback"
+
+    try:
+        discovery = fetch_oidc_discovery(issuer_url)
+        auth_endpoint = discovery.get('authorization_endpoint')
+        if not auth_endpoint:
+            return jsonify({'msg': 'OIDC 服务发现未提供 authorization_endpoint！'}), 400
+
+        state, nonce = generate_state_and_nonce(
+            secret_key=current_app.config['SECRET_KEY'],
+            redirect_uri=redirect_uri
+        )
+
+        params = {
+            'client_id': client_id,
+            'response_type': 'code',
+            'scope': cfg.get('scopes', 'openid profile email'),
+            'redirect_uri': redirect_uri,
+            'state': state,
+            'nonce': nonce,
+        }
+
+        separator = '&' if '?' in auth_endpoint else '?'
+        full_auth_url = f"{auth_endpoint}{separator}{urllib.parse.urlencode(params)}"
+
+        return jsonify({
+            'auth_url': full_auth_url,
+            'state': state,
+        })
+    except Exception as e:
+        return jsonify({'msg': f'获取 OIDC 授权跳转地址失败: {str(e)}'}), 500
+
+
+def _handle_oidc_callback(code: str, state: str, client_redirect_uri: str = '') -> dict:
+    """核心 OIDC 回调处理逻辑，供 POST 与 GET 接口复用。"""
+    from apps.tools.oidc import (
+        get_oidc_configs,
+        fetch_oidc_discovery,
+        verify_and_consume_state,
+        exchange_code_for_tokens,
+        verify_nonce_in_id_token,
+        fetch_userinfo,
+        resolve_apps_admin_user,
+        issue_user_jwt
+    )
+
+    cfg = get_oidc_configs()
+    if not cfg.get('enabled'):
+        raise ValueError("OIDC 单点登录尚未在后台启用！")
+
+    # 1. 严格校验并消费 State，防止 CSRF 与重放攻击
+    state_payload = verify_and_consume_state(state, current_app.config['SECRET_KEY'])
+    expected_nonce = state_payload.get('nonce')
+    state_redirect_uri = state_payload.get('redirect_uri')
+
+    redirect_uri = client_redirect_uri or state_redirect_uri or f"{request.host_url.rstrip('/')}/login/callback"
+
+    # 2. 请求服务发现与 Token 端点换取 Token
+    discovery = fetch_oidc_discovery(cfg['issuer_url'])
+    token_endpoint = discovery.get('token_endpoint')
+    userinfo_endpoint = discovery.get('userinfo_endpoint')
+
+    token_res = exchange_code_for_tokens(
+        token_endpoint=token_endpoint,
+        client_id=cfg['client_id'],
+        client_secret=cfg['client_secret'],
+        code=code,
+        redirect_uri=redirect_uri
+    )
+
+    access_token = token_res.get('access_token')
+    id_token = token_res.get('id_token')
+
+    # 3. 校验 Nonce (防御 ID Token 重放攻击)
+    if id_token:
+        verify_nonce_in_id_token(id_token, expected_nonce)
+
+    # 4. 获取 UserInfo 声明
+    userinfo = {}
+    if userinfo_endpoint and access_token:
+        userinfo = fetch_userinfo(userinfo_endpoint, access_token)
+
+    # 5. 用户名绑定决策与本地管理员解析
+    matched_admin, oidc_user, err_reason = resolve_apps_admin_user(userinfo, id_token, cfg)
+    if not matched_admin:
+        raise PermissionError(err_reason)
+
+    # 6. 签发本系统管理员 JWT Token
+    auth_data = issue_user_jwt(matched_admin, current_app.config['SECRET_KEY'])
+    return auth_data
+
+
+@api_auth.route('/api/auth/oidc/callback', methods=['POST'])
+def oidc_callback_post():
+    """前端 SPA 发起的 OIDC 授权码兑换接口。"""
+    data = request.get_json() or {}
+    code = (data.get('code') or '').strip()
+    state = (data.get('state') or '').strip()
+    redirect_uri = (data.get('redirect_uri') or '').strip()
+
+    if not code or not state:
+        return jsonify({'msg': '回调参数不完整：缺失 code 或 state！'}), 400
+
+    try:
+        auth_data = _handle_oidc_callback(code, state, redirect_uri)
+        return jsonify(auth_data)
+    except PermissionError as e:
+        return jsonify({'msg': str(e)}), 403
+    except ValueError as e:
+        return jsonify({'msg': str(e)}), 400
+    except Exception as e:
+        return jsonify({'msg': f'OIDC 登录鉴权失败: {str(e)}'}), 500
+
+
+@api_auth.route('/api/auth/oidc/callback', methods=['GET'])
+def oidc_callback_get():
+    """浏览器直接跳转回后端的 OIDC 回调地址（自动跳转回前端 /login/callback）。"""
+    code = request.args.get('code', '').strip()
+    state = request.args.get('state', '').strip()
+    error = request.args.get('error', '').strip()
+    error_desc = request.args.get('error_description', '').strip()
+
+    if error:
+        err_msg = error_desc or error
+        return redirect(f"/login/callback?error={urllib.parse.quote(err_msg)}")
+
+    if not code or not state:
+        return redirect(f"/login/callback?error={urllib.parse.quote('缺失 code 或 state 回调参数')}")
+
+    try:
+        auth_data = _handle_oidc_callback(code, state, request.base_url)
+        return redirect(f"/login/callback?token={auth_data['token']}")
+    except Exception as e:
+        return redirect(f"/login/callback?error={urllib.parse.quote(str(e))}")
+
 

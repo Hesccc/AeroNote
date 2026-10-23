@@ -69,7 +69,13 @@ def create_apps():
 
     @app.after_request
     def log_after_request(response):
-        # 仅针对 API 接口与上传接口记录访问审计日志，过滤静态探针刷屏
+        # 1. 注入 OWASP 生产级安全响应头 (防 MIME 嗅探、防点击劫持、跨域策略)
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+
+        # 2. 仅针对 API 接口与上传接口记录访问审计日志，过滤静态探针刷屏
         if request.path.startswith(('/api/', '/apis/')):
             duration_ms = (time.time() - getattr(g, 'request_start_time', time.time())) * 1000
             status_code = response.status_code

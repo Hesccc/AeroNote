@@ -12,6 +12,9 @@ export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [siteTitle, setSiteTitle] = useState('AeroNote');
+  const [oidcEnabled, setOidcEnabled] = useState(false);
+  const [oidcButtonText, setOidcButtonText] = useState('使用 OIDC 单点登录');
+  const [oidcLoading, setOidcLoading] = useState(false);
 
   useEffect(() => {
     document.title = '控制台登录 - AeroNote';
@@ -24,7 +27,32 @@ export const Login: React.FC = () => {
         if (cfg.website_icon) updateFavicon(cfg.website_icon);
       }
     }).catch(console.error);
+
+    // 查询 OIDC 登录开启状态
+    api.getOidcStatus().then(status => {
+      if (status && status.enabled) {
+        setOidcEnabled(true);
+        if (status.button_text) setOidcButtonText(status.button_text);
+      }
+    }).catch(console.error);
   }, [navigate]);
+
+  const handleOidcLogin = async () => {
+    setOidcLoading(true);
+    setError('');
+    try {
+      const callbackUri = `${window.location.origin}/login/callback`;
+      const res = await api.getOidcAuthUrl(callbackUri);
+      if (res.auth_url) {
+        window.location.href = res.auth_url;
+      } else {
+        throw new Error('未获取到有效的 OIDC 授权地址');
+      }
+    } catch (err: unknown) {
+      setError((err as Error).message || '发起 OIDC 登录失败，请检查服务配置');
+      setOidcLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +111,7 @@ export const Login: React.FC = () => {
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                placeholder="默认管理员账号: admin"
+                placeholder="请输入用户名"
                 className="login-input"
                 autoComplete="username"
                 autoFocus
@@ -129,7 +157,7 @@ export const Login: React.FC = () => {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || oidcLoading}
             className="login-submit-btn"
           >
             {loading ? (
@@ -142,6 +170,35 @@ export const Login: React.FC = () => {
             )}
           </button>
         </form>
+
+        {oidcEnabled && (
+          <div style={{ marginTop: '0.25rem' }}>
+            <div className="login-divider">
+              <span>或通过单点登录认证</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleOidcLogin}
+              disabled={loading || oidcLoading}
+              className="login-oidc-btn"
+            >
+              {oidcLoading ? (
+                <>
+                  <span className="login-spin" style={{ borderColor: 'rgba(0,0,0,0.2)', borderTopColor: 'var(--text-color)' }} />
+                  <span>正在跳转到身份中心...</span>
+                </>
+              ) : (
+                <>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <circle cx="12" cy="11" r="3" />
+                  </svg>
+                  <span>{oidcButtonText}</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
 
         <div className="login-footer-nav">
           <Link to="/" className="login-back-link">

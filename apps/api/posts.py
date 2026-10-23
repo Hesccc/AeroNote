@@ -8,6 +8,12 @@ from sqlalchemy import func
 from apps.exts import db
 from apps.models.model import Posts, Categories, Tags, PostTags, PostCategories
 from apps.tools.tools import escape_like
+from apps.tools.cache import (
+    api_cache,
+    invalidate_posts_cache,
+    invalidate_taxonomy_cache,
+    invalidate_all_cache
+)
 from .middleware import token_required
 
 api_posts = Blueprint('api_posts', __name__)
@@ -108,6 +114,15 @@ def get_posts():
     category_slug = request.args.get('category')
     tag_slug = request.args.get('tag')
     search = request.args.get('search')
+
+    # 高频读接口内存缓存 (Task 4)
+    cache_key = f"posts:p={page}&pp={per_page}&c={category_slug or ''}&t={tag_slug or ''}&s={search or ''}"
+    cached_data = api_cache.get(cache_key)
+    if cached_data is not None:
+        resp = jsonify(cached_data)
+        resp.headers['X-Cache'] = 'HIT'
+        resp.headers['Cache-Control'] = 'public, max-age=60'
+        return resp
     
     query = Posts.query.filter(Posts.deleted == 0, Posts.status == 0)
     
@@ -130,14 +145,21 @@ def get_posts():
     
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     
-    return jsonify({
+    result_data = {
         'posts': serialize_posts(pagination.items),
         'total': pagination.total,
         'page': pagination.page,
         'pages': pagination.pages,
         'has_next': pagination.has_next,
         'has_prev': pagination.has_prev
-    })
+    }
+
+    # 写入缓存并下发 60s 缓存控制头
+    api_cache.set(cache_key, result_data, ttl=60)
+    resp = jsonify(result_data)
+    resp.headers['X-Cache'] = 'MISS'
+    resp.headers['Cache-Control'] = 'public, max-age=60'
+    return resp
 
 @api_posts.route('/api/posts/<int:post_id>', methods=['GET'])
 def get_post_detail(post_id):
@@ -236,8 +258,15 @@ def get_post_detail(post_id):
 
 @api_posts.route('/api/categories', methods=['GET'])
 def get_categories():
+    cached = api_cache.get('categories:all')
+    if cached is not None:
+        resp = jsonify(cached)
+        resp.headers['X-Cache'] = 'HIT'
+        resp.headers['Cache-Control'] = 'public, max-age=60'
+        return resp
+
     categories = Categories.query.filter(Categories.deleted == 0).order_by(Categories.priority.desc(), Categories.id.asc()).all()
-    return jsonify([{
+    data = [{
         'id': c.id,
         'name': c.name,
         'slug': c.slug,
@@ -245,17 +274,34 @@ def get_categories():
         'color': c.color,
         'parent_id': c.parent_id,
         'priority': c.priority or 0
-    } for c in categories])
+    } for c in categories]
+    api_cache.set('categories:all', data, ttl=60)
+    resp = jsonify(data)
+    resp.headers['X-Cache'] = 'MISS'
+    resp.headers['Cache-Control'] = 'public, max-age=60'
+    return resp
 
 @api_posts.route('/api/tags', methods=['GET'])
 def get_tags():
+    cached = api_cache.get('tags:all')
+    if cached is not None:
+        resp = jsonify(cached)
+        resp.headers['X-Cache'] = 'HIT'
+        resp.headers['Cache-Control'] = 'public, max-age=60'
+        return resp
+
     tags = Tags.query.filter(Tags.deleted == 0).order_by(Tags.id.asc()).all()
-    return jsonify([{
+    data = [{
         'id': t.id,
         'name': t.name,
         'slug': t.slug,
         'color': t.color
-    } for t in tags])
+    } for t in tags]
+    api_cache.set('tags:all', data, ttl=60)
+    resp = jsonify(data)
+    resp.headers['X-Cache'] = 'MISS'
+    resp.headers['Cache-Control'] = 'public, max-age=60'
+    return resp
 
 # ----------------- ADMIN ENDPOINTS -----------------
 
@@ -361,6 +407,7 @@ def manage_create_post():
             db.session.add(post_tag)
             
     db.session.commit()
+    invalidate_all_cache()
     return jsonify(serialize_post(new_post)), 201
 
 @api_posts.route('/api/manage/posts/<int:post_id>', methods=['PUT'])
@@ -413,6 +460,7 @@ def manage_update_post(post_id):
             db.session.add(post_tag)
             
     db.session.commit()
+    invalidate_all_cache()
     return jsonify(serialize_post(post))
 
 @api_posts.route('/api/manage/posts/<int:post_id>', methods=['DELETE'])
@@ -427,6 +475,7 @@ def manage_delete_post(post_id):
     PostTags.query.filter(PostTags.post_id == post_id).update({PostTags.deleted: 1})
     
     db.session.commit()
+    invalidate_all_cache()
     return jsonify({'msg': 'Post deleted successfully!'})
 
 
@@ -468,6 +517,7 @@ def manage_batch_posts():
             post.update_time = now
 
     db.session.commit()
+    invalidate_all_cache()
     action_label = {'delete': '删除', 'publish': '发布', 'draft': '设为草稿'}[action]
     return jsonify({'msg': f'已{action_label} {len(posts)} 篇文章', 'affected': len(posts)})
 
@@ -601,6 +651,7 @@ def manage_import_posts():
             return jsonify({'msg': '仅支持 .md 文件或 .zip 压缩包'}), 400
 
         db.session.commit()
+        invalidate_all_cache()
 
     except Exception as e:
         db.session.rollback()
@@ -655,6 +706,7 @@ def manage_create_category():
     )
     db.session.add(cat)
     db.session.commit()
+    invalidate_taxonomy_cache()
     return jsonify({
         'id': cat.id,
         'name': cat.name,
@@ -698,6 +750,7 @@ def manage_update_category(cat_id):
         
     cat.update_time = datetime.now()
     db.session.commit()
+    invalidate_taxonomy_cache()
     return jsonify({
         'id': cat.id,
         'name': cat.name,
@@ -716,6 +769,7 @@ def manage_delete_category(cat_id):
     cat.update_time = datetime.now()
     PostCategories.query.filter(PostCategories.category_id == cat_id).update({PostCategories.deleted: 1})
     db.session.commit()
+    invalidate_taxonomy_cache()
     return jsonify({'msg': 'Category deleted successfully!'})
 
 @api_posts.route('/api/manage/tags', methods=['POST'])
@@ -744,6 +798,7 @@ def manage_create_tag():
     )
     db.session.add(tag)
     db.session.commit()
+    invalidate_taxonomy_cache()
     return jsonify({
         'id': tag.id,
         'name': tag.name,
@@ -772,6 +827,7 @@ def manage_update_tag(tag_id):
         
     tag.update_time = datetime.now()
     db.session.commit()
+    invalidate_taxonomy_cache()
     return jsonify({
         'id': tag.id,
         'name': tag.name,
@@ -787,4 +843,5 @@ def manage_delete_tag(tag_id):
     tag.update_time = datetime.now()
     PostTags.query.filter(PostTags.tag_id == tag_id).update({PostTags.deleted: 1})
     db.session.commit()
+    invalidate_taxonomy_cache()
     return jsonify({'msg': 'Tag deleted successfully!'})

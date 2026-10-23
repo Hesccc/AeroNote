@@ -218,6 +218,8 @@ def open_sync_post():
 
     # 提交事务
     db.session.commit()
+    from apps.tools.cache import invalidate_all_cache
+    invalidate_all_cache()
 
     return jsonify({
         'code': 200,

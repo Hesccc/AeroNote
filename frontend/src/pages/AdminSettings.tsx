@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../utils/api';
+import { api, type OidcTestReport } from '../utils/api';
 import { AdminLayout } from '../components/AdminLayout';
 
 interface SettingTab {
@@ -72,6 +72,17 @@ const SYSTEM_TABS: SettingTab[] = [
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      </svg>
+    ),
+  },
+  {
+    id: 'oidc',
+    name: 'OIDC 单点登录',
+    desc: 'Keycloak, Authentik, Casdoor 等 SSO 身份中心对接与用户绑定',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <circle cx="12" cy="11" r="3" />
       </svg>
     ),
   }
@@ -148,6 +159,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ mode = 'system' })
   // AI 连通性测试状态
   const [testingAi, setTestingAi] = useState(false);
   const [aiTestResult, setAiTestResult] = useState<{ success: boolean; msg: string } | null>(null);
+
+  // OIDC 单点登录状态
+  const [testingOidc, setTestingOidc] = useState(false);
+  const [oidcTestResult, setOidcTestResult] = useState<OidcTestReport | null>(null);
+  const [showOidcSecret, setShowOidcSecret] = useState(false);
+  const [copiedOidcUri, setCopiedOidcUri] = useState(false);
 
   // AI 定时任务状态与日志
   const [schedulerStatus, setSchedulerStatus] = useState<{
@@ -368,6 +385,26 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ mode = 'system' })
       setAiTestResult({ success: false, msg: (err as Error).message || '连接失败' });
     } finally {
       setTestingAi(false);
+    }
+  };
+
+  const handleTestOidc = async () => {
+    setTestingOidc(true);
+    setOidcTestResult(null);
+    try {
+      const res = await api.oidcTestConnection({
+        issuer_url: config.oidc_issuer_url,
+        client_id: config.oidc_client_id,
+        client_secret: config.oidc_client_secret,
+      });
+      setOidcTestResult(res);
+    } catch (err: unknown) {
+      setOidcTestResult({
+        success: false,
+        msg: (err as Error).message || '连接失败，请检查 OIDC Issuer 地址或网络',
+      });
+    } finally {
+      setTestingOidc(false);
     }
   };
 
@@ -1367,6 +1404,377 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ mode = 'system' })
                         💡 <strong>幂等特性保证</strong>：相同 <code>source_id</code>（或思源文档 ID）再次推送时，系统将智能就地更新该文章的标题、内容、分类与标签，而不会产生重复多余文章。
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 8.5 OIDC Single Sign-On (SSO) Settings */}
+              {activeTab === 'oidc' && (
+                <div className="settings-pane active">
+                  <div className="settings-pane-header">
+                    <h3 className="settings-pane-title">OIDC (OpenID Connect) 单点登录集成</h3>
+                    <p className="settings-pane-desc">
+                      支持与 Keycloak、Authentik、Casdoor、Authing、GitHub、GitLab 等通用标准身份中心对接。具备 State/Nonce 密码学防重放防护与精确的 Apps 管理员映射机制。
+                    </p>
+                  </div>
+
+                  {/* 1. 总开关卡片 */}
+                  <div className="admin-card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                      <div>
+                        <div style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--admin-text-1)' }}>OIDC 单点登录功能开关</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--admin-text-3)', marginTop: 4 }}>
+                          开启后，登录控制台页面（/login）将展示「使用 OIDC 单点登录」快捷按钮，传统账号密码仍可作为安全兜底
+                        </div>
+                      </div>
+
+                      <div className="giscus-switch-pill" role="group" aria-label="OIDC 开关">
+                        <div
+                          className={`giscus-switch-slider ${
+                            config.oidc_enabled === 'true' || config.oidc_enabled === '1'
+                              ? 'active-on'
+                              : 'active-off'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          className={`giscus-switch-item ${
+                            config.oidc_enabled === 'true' || config.oidc_enabled === '1'
+                              ? 'is-selected'
+                              : ''
+                          }`}
+                          onClick={() => handleChange('oidc_enabled', 'true')}
+                        >
+                          <span className="giscus-switch-dot" />
+                          已开启
+                        </button>
+                        <button
+                          type="button"
+                          className={`giscus-switch-item ${
+                            config.oidc_enabled !== 'true' && config.oidc_enabled !== '1'
+                              ? 'is-selected'
+                              : ''
+                          }`}
+                          onClick={() => handleChange('oidc_enabled', 'false')}
+                        >
+                          <span className="giscus-switch-dot" />
+                          已关闭
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. 身份中心基础参数 */}
+                  <div className="admin-card" style={{ padding: '1.5rem', marginBottom: '1.25rem' }}>
+                    <h4 style={{ margin: '0 0 1rem', fontSize: '0.94rem', fontWeight: 600, color: 'var(--admin-text-1)' }}>
+                      一、 OIDC 服务发现与客户端参数
+                    </h4>
+
+                    <div className="settings-form-stack">
+                      <div className="admin-form-group">
+                        <label className="admin-form-label">
+                          OIDC 服务发现地址 (Issuer URL) <span style={{ color: 'var(--admin-danger)' }}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={config.oidc_issuer_url || ''}
+                          onChange={e => handleChange('oidc_issuer_url', e.target.value)}
+                          placeholder="例如: https://auth.example.com/realms/master 或 https://casdoor.example.com"
+                          className="admin-form-control"
+                        />
+                        <div className="admin-form-hint">
+                          OIDC 身份提供商 (IdP) 根地址。系统会自动访问其 <code>/.well-known/openid-configuration</code> 发现端点探测授权、令牌和用户信息地址。
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                        <div className="admin-form-group">
+                          <label className="admin-form-label">
+                            客户端标识 (Client ID) <span style={{ color: 'var(--admin-danger)' }}>*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={config.oidc_client_id || ''}
+                            onChange={e => handleChange('oidc_client_id', e.target.value)}
+                            placeholder="例如: aeronote-client"
+                            className="admin-form-control"
+                          />
+                          <div className="admin-form-hint">在 OIDC 身份中心为本博客创建的 Client ID</div>
+                        </div>
+
+                        <div className="admin-form-group">
+                          <label className="admin-form-label">
+                            客户端密钥 (Client Secret) <span style={{ color: 'var(--admin-danger)' }}>*</span>
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type={showOidcSecret ? 'text' : 'password'}
+                              value={config.oidc_client_secret || ''}
+                              onChange={e => handleChange('oidc_client_secret', e.target.value)}
+                              placeholder="请输入客户端密钥"
+                              className="admin-form-control"
+                              style={{ paddingRight: '2.5rem' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowOidcSecret(v => !v)}
+                              style={{
+                                position: 'absolute',
+                                right: '0.6rem',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: 'var(--admin-text-3)',
+                                padding: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                              }}
+                              title={showOidcSecret ? '隐藏密钥' : '查看密钥'}
+                            >
+                              {showOidcSecret ? (
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                                  <line x1="1" y1="1" x2="23" y2="23" />
+                                </svg>
+                              ) : (
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                              )}
+                            </button>
+                          </div>
+                          <div className="admin-form-hint">客户端保密凭证，用于在后端换取访问令牌（已自动加密防护与隔离输出）</div>
+                        </div>
+                      </div>
+
+                      <div className="admin-form-group">
+                        <label className="admin-form-label">请求权限范围 (Scopes)</label>
+                        <input
+                          type="text"
+                          value={config.oidc_scopes || 'openid profile email'}
+                          onChange={e => handleChange('oidc_scopes', e.target.value)}
+                          placeholder="openid profile email"
+                          className="admin-form-control"
+                        />
+                        <div className="admin-form-hint">多个 Scope 用空格隔开，标准 OIDC 协议必须包含 <code>openid</code>。</div>
+                      </div>
+
+                      {/* 回调地址提示与复制 */}
+                      <div style={{ padding: '0.85rem 1rem', background: 'var(--admin-bg)', border: '1px solid var(--admin-border)', borderRadius: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--admin-text-1)' }}>
+                              🔗 身份中心所需的回调地址 (Valid Redirect URI)
+                            </div>
+                            <div style={{ fontSize: '0.76rem', color: 'var(--admin-text-3)', marginTop: 2 }}>
+                              请将下方地址添加到您的 IdP 客户端「授权回调地址 / Valid Redirect URIs」配置中
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const uri = `${window.location.origin}/login/callback`;
+                              navigator.clipboard.writeText(uri);
+                              setCopiedOidcUri(true);
+                              setTimeout(() => setCopiedOidcUri(false), 2000);
+                            }}
+                            className="admin-btn admin-btn-secondary admin-btn-sm"
+                          >
+                            {copiedOidcUri ? '✓ 已复制到剪贴板' : '一键复制回调地址'}
+                          </button>
+                        </div>
+                        <div style={{ marginTop: '0.5rem', fontFamily: 'monospace', fontSize: '0.82rem', color: 'var(--color-primary, #10b981)', wordBreak: 'break-all' }}>
+                          {`${window.location.origin}/login/callback`}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. 用户名绑定与管理员映射 (核心需求 1) */}
+                  <div className="admin-card" style={{ padding: '1.5rem', marginBottom: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <h4 style={{ margin: 0, fontSize: '0.94rem', fontWeight: 600, color: 'var(--admin-text-1)' }}>
+                        二、 用户名绑定与管理员映射策略 (oidc user ➔ Apps admin)
+                      </h4>
+                      <span style={{ fontSize: '0.74rem', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-primary, #10b981)', padding: '2px 8px', borderRadius: 4, fontWeight: 500 }}>
+                        安全白名单拦截机制已生效
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '0.8rem', color: 'var(--admin-text-3)', marginBottom: '1rem', lineHeight: 1.5 }}>
+                      个人博客是高安全私有后台。未经绑定的任意外部 OIDC 用户即便通过了 IdP 认证，系统也会坚决拦截并拒绝登录。
+                    </div>
+
+                    <div className="settings-form-stack">
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                        <div className="admin-form-group">
+                          <label className="admin-form-label">提取匹配字段 (Claim Field)</label>
+                          <select
+                            value={config.oidc_claim_field || 'preferred_username'}
+                            onChange={e => handleChange('oidc_claim_field', e.target.value)}
+                            className="admin-form-control"
+                          >
+                            <option value="preferred_username">preferred_username (OIDC 标准首选用户名，推荐)</option>
+                            <option value="email">email (用户认证邮箱)</option>
+                            <option value="sub">sub (提供商全局唯一 Subject 标识符)</option>
+                            <option value="name">name (用户姓名/昵称)</option>
+                          </select>
+                          <div className="admin-form-hint">从 OIDC 返回的声明中获取哪个字段作为身份比对凭证</div>
+                        </div>
+
+                        <div className="admin-form-group">
+                          <label className="admin-form-label">映射绑定的目标博客管理员账号</label>
+                          <input
+                            type="text"
+                            value={config.oidc_bound_admin || 'admin'}
+                            onChange={e => handleChange('oidc_bound_admin', e.target.value)}
+                            placeholder="默认: admin"
+                            className="admin-form-control"
+                          />
+                          <div className="admin-form-hint">OIDC 认证通过后，该用户在本系统中所赋予的本地管理员账号</div>
+                        </div>
+                      </div>
+
+                      <div className="admin-form-group">
+                        <label className="admin-form-label">
+                          绑定的 OIDC 身份标识 (oidc user)
+                        </label>
+                        <input
+                          type="text"
+                          value={config.oidc_bound_username || ''}
+                          onChange={e => handleChange('oidc_bound_username', e.target.value)}
+                          placeholder="例如: hescc 或 admin@example.com"
+                          className="admin-form-control"
+                        />
+                        <div className="admin-form-hint">
+                          当在 OIDC 身份中心登录此用户（即上方选定字段的值等于此处填写的内容）时，系统自动准许登录并映射为目标管理员。
+                        </div>
+                      </div>
+
+                      {/* 同名自动匹配开关 */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.85rem 1rem', background: 'var(--admin-bg)', border: '1px solid var(--admin-border)', borderRadius: 8 }}>
+                        <div>
+                          <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--admin-text-1)' }}>允许同名用户自动匹配登录</div>
+                          <div style={{ fontSize: '0.76rem', color: 'var(--admin-text-3)', marginTop: 2 }}>
+                            若 OIDC 用户名与本系统数据库中的已有管理员用户名（如 admin）完全一致，是否允许直接匹配登录
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={config.oidc_auto_match_username === 'true' || config.oidc_auto_match_username === '1'}
+                          onChange={e => handleChange('oidc_auto_match_username', e.target.checked ? 'true' : 'false')}
+                          style={{ width: 18, height: 18, accentColor: 'var(--color-primary, #10b981)', cursor: 'pointer' }}
+                        />
+                      </div>
+
+                      {/* 高级多用户映射表 */}
+                      <div className="admin-form-group" style={{ marginTop: '0.5rem' }}>
+                        <label className="admin-form-label">高级多用户映射规则 (每行一条规则)</label>
+                        <textarea
+                          rows={3}
+                          value={config.oidc_bound_mappings || ''}
+                          onChange={e => handleChange('oidc_bound_mappings', e.target.value)}
+                          placeholder={"例如：\nhescc:admin\nadmin_ops:admin\njohn@example.com:admin"}
+                          className="admin-form-control"
+                          style={{ fontFamily: 'monospace', fontSize: '0.84rem' }}
+                        />
+                        <div className="admin-form-hint">
+                          格式：<code>oidc_user:apps_admin</code>。支持为多个外部账号分别指定映射到哪个本地管理员。
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4. State / Nonce 安全防护机制卡片 (核心需求 2) */}
+                  <div className="admin-card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.25rem', background: 'var(--admin-card-bg)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--color-primary, #10b981)' }}>
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        <polyline points="9 12 11 14 15 10" />
+                      </svg>
+                      <h4 style={{ margin: 0, fontSize: '0.94rem', fontWeight: 600, color: 'var(--admin-text-1)' }}>
+                        三、 工业级 State / Nonce 密码学双重防护
+                      </h4>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.85rem', marginTop: '0.85rem' }}>
+                      <div style={{ padding: '0.75rem 0.9rem', borderRadius: 6, background: 'var(--admin-bg)', border: '1px solid var(--admin-border)' }}>
+                        <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--admin-text-1)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span style={{ color: 'var(--color-primary, #10b981)' }}>●</span> 防跨站伪造 (CSRF State 防护)
+                        </div>
+                        <div style={{ fontSize: '0.76rem', color: 'var(--admin-text-3)', marginTop: 4, lineHeight: 1.5 }}>
+                          跳转授权时生成基于系统密钥 HS256 签名的动态 State 令牌，具备 10 分钟时效。回调时强制实行<strong>一次性消费 (One-time use)</strong>，彻底防御重放攻击。
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '0.75rem 0.9rem', borderRadius: 6, background: 'var(--admin-bg)', border: '1px solid var(--admin-border)' }}>
+                        <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--admin-text-1)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span style={{ color: 'var(--color-primary, #10b981)' }}>●</span> 令牌重放防御 (Nonce 强校验)
+                        </div>
+                        <div style={{ fontSize: '0.76rem', color: 'var(--admin-text-3)', marginTop: 4, lineHeight: 1.5 }}>
+                          生成密码学高熵随机 Nonce 绑定于会话中；在兑换获得的 ID Token 中严格比对 Nonce 声明，防御中间人盗用与令牌替换。
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 5. 网络连通性测试板块 (核心需求 3) */}
+                  <div className="admin-card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                      <div>
+                        <div style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--admin-text-1)' }}>四、 OIDC 服务网络连通性探测</div>
+                        <div style={{ fontSize: '0.76rem', color: 'var(--admin-text-3)', marginTop: 2 }}>
+                          直接使用上方填写的参数进行实时握手与服务端点发现探测，无需先行保存
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleTestOidc}
+                        disabled={testingOidc || !config.oidc_issuer_url}
+                        className="admin-btn admin-btn-secondary admin-btn-sm"
+                      >
+                        {testingOidc ? '正在连接探测...' : '测试 OIDC 服务连通性'}
+                      </button>
+                    </div>
+
+                    {oidcTestResult && (
+                      <div
+                        style={{
+                          marginTop: '0.85rem',
+                          padding: '0.75rem 1rem',
+                          borderRadius: 6,
+                          fontSize: '0.82rem',
+                          lineHeight: 1.55,
+                          background: oidcTestResult.success ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                          color: oidcTestResult.success ? 'var(--admin-success, #10b981)' : 'var(--admin-danger, #ef4444)',
+                          border: `1px solid ${oidcTestResult.success ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`,
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, marginBottom: oidcTestResult.endpoints ? '0.5rem' : 0 }}>
+                          {oidcTestResult.success ? `✓ ${oidcTestResult.msg}` : `✕ ${oidcTestResult.msg}`}
+                        </div>
+
+                        {oidcTestResult.endpoints && (
+                          <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed rgba(16, 185, 129, 0.25)', color: 'var(--admin-text-2)', fontSize: '0.78rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', wordBreak: 'break-all' }}>
+                              <span style={{ color: 'var(--admin-text-3)' }}>发现端点:</span>
+                              <code>{oidcTestResult.endpoints.discovery}</code>
+                              <span style={{ color: 'var(--admin-text-3)' }}>授权端点:</span>
+                              <code>{oidcTestResult.endpoints.authorization_endpoint}</code>
+                              <span style={{ color: 'var(--admin-text-3)' }}>令牌端点:</span>
+                              <code>{oidcTestResult.endpoints.token_endpoint}</code>
+                              <span style={{ color: 'var(--admin-text-3)' }}>用户信息端点:</span>
+                              <code>{oidcTestResult.endpoints.userinfo_endpoint}</code>
+                              <span style={{ color: 'var(--admin-text-3)' }}>证书公钥:</span>
+                              <code>{oidcTestResult.endpoints.jwks_uri}</code>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

@@ -7,6 +7,7 @@ import { ScrollNav } from '../components/ScrollNav';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
 import { Toc } from '../components/Toc';
 import { PostPosterModal } from '../components/PostPosterModal';
+import { updateArticleMeta, resetDynamicMeta } from '../utils/meta';
 import { GiscusComment } from '../components/GiscusComment';
 import {
   IconCalendar,
@@ -55,6 +56,19 @@ export const PostDetail: React.FC = () => {
         setPost(data);
         setLoading(false);
         document.title = `${data.title} - AeroNote`;
+
+        // 动态注入 OpenGraph 与社交卡片 Meta 标签 (Task 2.2)
+        const coverImg = data.thumbnail
+          ? (data.thumbnail.startsWith('http') ? data.thumbnail : `${window.location.origin}${data.thumbnail}`)
+          : undefined;
+
+        updateArticleMeta({
+          title: data.title,
+          description: data.summary || data.meta_description || data.content?.slice(0, 160) || '',
+          image: coverImg,
+          author: data.author || undefined,
+          publishedTime: data.create_time,
+        });
       })
       .catch(err => {
         if (!active) return;
@@ -64,6 +78,7 @@ export const PostDetail: React.FC = () => {
 
     return () => {
       active = false;
+      resetDynamicMeta();
     };
   }, [id]);
 

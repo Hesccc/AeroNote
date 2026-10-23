@@ -105,6 +105,9 @@ SQLALCHEMY_TRACK_MODIFICATIONS = False
 SQLALCHEMY_ENGINE_OPTIONS = {
     'pool_pre_ping': True,  # 开启心跳检测，自动回收断开连接，避免数据库超时闪断
     'pool_recycle': 3600,   # 每小时回收连接，防止连接池泄漏
+    'pool_size': int(os.getenv('DB_POOL_SIZE', 10)),       # 基础并发连接池容量
+    'max_overflow': int(os.getenv('DB_MAX_OVERFLOW', 20)), # 高并发突发最大允许溢出连接数
+    'pool_timeout': int(os.getenv('DB_POOL_TIMEOUT', 30)), # 连接池耗尽等待超时时间 (秒)
 }
 
 # 上传配置

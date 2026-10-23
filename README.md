@@ -35,7 +35,8 @@
 - **Markdown 文章全量导出**：全站文章批量导出为独立 `.md` 压缩包，完整保留标准 YAML Frontmatter 元数据。
 - **OSS 图片库资源打包**：一键归档所有图片索引元数据 CSV 与本地物理附件。
 
-### 🔌 开放 API 与多平台发布对接 (思源笔记 / Halo 2.x)
+### 🔌 开放 API 与多平台发布对接 (思源笔记 / Halo 2.x / OIDC SSO)
+- **通用 OIDC 单点登录 (SSO)**：支持无缝对接 Keycloak、Authentik、Casdoor、Authing、GitHub、GitLab 等通用身份中心；内置动态 HS256 签名 State 与 Nonce 防护（彻底防御 CSRF 与重放攻击）；支持精确配置 `oidc user ➔ Apps admin` 映射白名单与网络实时探测握手。
 - **思源笔记 (Publisher 插件) 原生兼容**：后端内置完整的 **Halo 2.x REST API 兼容层**（`/apis/*`），思源笔记 Publisher 插件中选择【Halo29】平台即可一键打通分类/标签拉取、文档发布与幂等更新。
 - **独立开放 API Token**：后台「系统设置」提供专属长效 API 密钥（`sk-open-xxxx`），支持一键生成、复制与重置，独立于管理员日常登录会话。
 - **RESTful Webhook 同步**：开放 `POST /api/open/posts/sync` 端点，支持基于 `source_id` 自动识别更新或新建，具备完整幂等性。

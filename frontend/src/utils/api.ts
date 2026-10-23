@@ -125,6 +125,23 @@ export interface AiPromptItem {
   is_customized: boolean;
 }
 
+export interface OidcTestReport {
+  success: boolean;
+  msg: string;
+  latency_ms?: number;
+  issuer?: string;
+  credentials_status?: string;
+  endpoints?: {
+    discovery: string;
+    authorization_endpoint: string;
+    token_endpoint: string;
+    userinfo_endpoint: string;
+    jwks_uri: string;
+    response_types_supported?: string[];
+    scopes_supported?: string[];
+  } | null;
+}
+
 export interface OssImage {
   id: number;
   url: string;
@@ -634,5 +651,31 @@ export const api = {
 
   adminResetOpenToken: (): Promise<{ token: string; msg: string }> => {
     return apiFetch('/api/manage/open-token', { method: 'POST' });
+  },
+
+  // OIDC 单点登录 API
+  getOidcStatus: (): Promise<{ enabled: boolean; button_text: string }> => {
+    return apiFetch('/api/auth/oidc/status');
+  },
+
+  getOidcAuthUrl: (redirectUri?: string): Promise<{ auth_url: string; state: string }> => {
+    return apiFetch('/api/auth/oidc/auth-url', {
+      method: 'POST',
+      body: JSON.stringify({ redirect_uri: redirectUri }),
+    });
+  },
+
+  oidcCallback: (data: { code: string; state: string; redirect_uri?: string }): Promise<{ token: string; username: string; name: string; email: string }> => {
+    return apiFetch('/api/auth/oidc/callback', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  oidcTestConnection: (data: { issuer_url?: string; client_id?: string; client_secret?: string }): Promise<OidcTestReport> => {
+    return apiFetch('/api/manage/oidc/test-connection', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 };

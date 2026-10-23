@@ -27,6 +27,7 @@ from apps.exts import db
 from apps.models.model import Posts, Categories, Tags, PostCategories, PostTags, User
 from apps.models.oss_image import OssImage
 from apps.tools.tools import verify_and_upgrade_password
+from apps.tools.cache import invalidate_all_cache
 from apps.api.open import get_or_create_open_token
 from apps import config
 
@@ -324,6 +325,7 @@ def halo_new_post():
 
     _sync_halo_taxonomy(p.id, spec.get('categories', []), spec.get('tags', []))
     db.session.commit()
+    invalidate_all_cache()
 
     return jsonify({
         'apiVersion': 'content.halo.run/v1alpha1',
@@ -347,6 +349,7 @@ def halo_publish_post(post_name):
         p.status = 0
         p.update_time = datetime.now()
         db.session.commit()
+        invalidate_all_cache()
     return jsonify({'status': 'published'}), 200
 
 
@@ -417,6 +420,7 @@ def halo_update_post_meta(post_name):
         p.update_time = datetime.now()
         _sync_halo_taxonomy(p.id, spec.get('categories', []), spec.get('tags', []))
         db.session.commit()
+        invalidate_all_cache()
     return jsonify({'status': 'ok'})
 
 
@@ -431,6 +435,7 @@ def halo_update_post_content(post_name):
         p.content = raw
         p.update_time = datetime.now()
         db.session.commit()
+        invalidate_all_cache()
     return jsonify({'status': 'ok'})
 
 
@@ -443,6 +448,7 @@ def halo_recycle_post(post_name):
         p.deleted = 1
         p.update_time = datetime.now()
         db.session.commit()
+        invalidate_all_cache()
     return jsonify({'status': 'ok', 'metadata': {'name': post_name}})
 
 
